@@ -31,6 +31,7 @@ const ChatRoom = (props) => {
   const [openChangeName, setOpenChangeName] = useState(false);
   const [openFirstVisit, setOpenFirstVisit] = useState(false);
   const [openMotd, setMotdDialog] = useState(false);
+  const [height, setHeight] = useState(0);
   const [anchorEl, setAnchorEl] = React.useState(null);
   const attachMenu = Boolean(anchorEl);
   const [img, setImg] = useState('');
@@ -44,6 +45,12 @@ const ChatRoom = (props) => {
       _roomMetadata[props.roomId] = { name: `Room ${Object.keys(_roomMetadata).length + 1}` };
       roomContext.updateRoomNames(_roomMetadata)
     }
+    function handleResize() {
+      setHeight(window.innerHeight)
+    }
+
+    window.addEventListener('resize', handleResize)
+    handleResize();
   }, [])
 
   React.useEffect(() => {
@@ -176,9 +183,8 @@ const ChatRoom = (props) => {
     activeChatContext.removeInputFiles()
     activeChatContext.setImgUrl(null)
   }
-  const { height } = Dimensions.get('window')
   return (
-    <View style={{ flexGrow: 1, flexBasis: 'fit-content', height: height - 160 }}>
+    <View style={{ flexGrow: 1, flexBasis: 'fit-content', height: height - 48 }}>
       <ImageOverlay open={openPreview} img={img} imgLoaded={imgLoaded} onClose={imageOverlayClosed} />
       <ChangeNameDialog open={openChangeName} />
       <MotdDialog open={openMotd} roomName={props.roomName} />

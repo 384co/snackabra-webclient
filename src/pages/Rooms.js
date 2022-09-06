@@ -190,7 +190,7 @@ function ResponsiveDrawer(props) {
         <Fab color="#ff5c42"
              variant="extended"
              onClick={handleDrawerToggle}
-             sx={{ mt: 2, position: 'absolute',display: { xs: 'flex-inline', sm: 'none' }, }}>
+             sx={{ mt: 2, position: 'absolute', display: { xs: 'flex-inline', sm: 'none' }, }}>
           <Typography variant={'body2'}>Menu</Typography>
           <KeyboardArrowRightIcon />
         </Fab>
@@ -223,10 +223,10 @@ function ResponsiveDrawer(props) {
       </Box>
       <Box
         component="main"
-        sx={{ flexGrow: 1, p: 3, width: { xs: '100%', sm: `calc(100% - ${drawerWidth}px)` } }}
+        sx={{ flexGrow: 1, p: 0, width: { xs: '100%', sm: `calc(100% - ${drawerWidth}px)` } }}
       >
-        <Toolbar />
         {!room_id && (<Grid>
+          <Toolbar />
           <Typography variant={'h6'}>Select a room or create a new one to get started.</Typography>
         </Grid>)
         }
