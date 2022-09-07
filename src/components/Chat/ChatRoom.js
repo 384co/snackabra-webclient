@@ -41,6 +41,7 @@ const ChatRoom = (props) => {
   const [files, setFiles] = React.useState([]); // [{dataUrl: "base64 data url", file: "raw file input}]
   const [loading, setLoading] = React.useState(false);
   const [user, setUser] = React.useState({});
+  const [height, setHeight] = React.useState(0);
   const SB = document.Snackabra;
 
   React.useEffect(() => {
@@ -257,7 +258,7 @@ const ChatRoom = (props) => {
           return <RenderChatFooter removeInputFiles={removeInputFiles} files={files} loading={loading} />
         }}
         renderBubble={(props) => {
-          return <RenderBubble {...props} keys={activeChatContext.getKeys()} SB={SB} />
+          return <RenderBubble {...props} keys={''} SB={SB} />
         }}
         renderSend={RenderSend}
         renderComposer={(props) => {
