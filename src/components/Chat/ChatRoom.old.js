@@ -34,7 +34,6 @@ const ChatRoom = (props) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const attachMenu = Boolean(anchorEl);
   const [img, setImg] = useState('');
-  const [height, setHeight] = useState(0);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [messages, setMessages] = useState([]);
   const [controlMessages, setControlMessages] = useState([]);
@@ -45,8 +44,6 @@ const ChatRoom = (props) => {
   const SB = document.Snackabra;
 
   React.useEffect(() => {
-
-
     roomContext.goToRoom(props.roomId)
 
     function handleResize() {
