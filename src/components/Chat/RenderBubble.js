@@ -98,7 +98,7 @@ const RenderBubble = (props) => {
       }
     }
     // else if (props.currentMessage.user._id === JSON.stringify(state.keys.exportable_room_pubKey)) {
-    else if (props.SB.areKeysSame(current_user_key, props.keys.exportable_owner_pubKey)) {
+    else if (props.SB.crypto.areKeysSame(current_user_key, props.keys.exportable_owner_pubKey)) {
       newProps = {
         wrapperStyle: {
           left: {
@@ -115,7 +115,7 @@ const RenderBubble = (props) => {
       }
     }
     //else if (props.currentMessage.user._id === JSON.stringify(state.keys.exportable_verifiedGuest_pubKey)) {
-    else if (props.SB.areKeysSame(current_user_key, props.keys.exportable_verifiedGuest_pubKey)) {
+    else if (props.SB.crypto.areKeysSame(current_user_key, props.keys.exportable_verifiedGuest_pubKey)) {
       newProps = {
         wrapperStyle: {
           left: {
@@ -137,7 +137,7 @@ const RenderBubble = (props) => {
   // For username on top
   return (
     <Grid style={{ width: '90%' }}>
-      {(isSameUser(props.currentMessage, props.previousMessage) && isSameDay(props.currentMessage, props.previousMessage)) || props.SB.areKeysSame(current_user_key, props.keys.exportable_pubKey)
+      {(isSameUser(props.currentMessage, props.previousMessage) && isSameDay(props.currentMessage, props.previousMessage)) || props.SB.crypto.areKeysSame(current_user_key, props.keys.exportable_pubKey)
         ? null
         : <Typography variant={'body1'} style={{
           width: '50vw',

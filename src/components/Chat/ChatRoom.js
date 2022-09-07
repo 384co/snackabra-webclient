@@ -67,7 +67,7 @@ const ChatRoom = (props) => {
             const message = {};
             message[x] = messages[x];
             //const sb_message = new SBMessage(x, )
-            _oldMessages.push(JSON.parse(await document.Snackabra.channel.socket.recieve(message)))
+            _oldMessages.push(JSON.parse(await document.Snackabra.channel.socket.receive(message)))
           }
           console.log(_oldMessages)
         });
@@ -89,25 +89,25 @@ const ChatRoom = (props) => {
       const local_username = contacts.hasOwnProperty(user_key) && contacts[user_key].split(' ')[0] !== 'User' && !unnamed.includes(contacts[user_key].trim()) ? contacts[user_key] : 'Unnamed';
       contacts[user_key] = local_username;
       const alias = message.hasOwnProperty('sender_username') ? message.sender_username : '';
-      if (user_key === (SB.identity.exportable_pubKey.x + " " + SB.identity.exportable_pubKey.y) || local_username === 'Me') {
+      if (user_key === (document.Snackabra.identity.exportable_pubKey.x + " " + document.Snackabra.identity.exportable_pubKey.y) || local_username === 'Me') {
         contacts[user_key] = 'Me';
         username = 'Me';
-        user_id = JSON.stringify(SB.identity.exportable_pubKey);
+        user_id = JSON.stringify(document.Snackabra.identity.exportable_pubKey);
       } else {
         if (alias !== '') {
           username = (local_username === alias || local_username === 'Unnamed') ? alias : alias + '  (' + local_username + ')';
         } else {
           username = '(' + local_username + ')';
         }
-        if (SB.crypto.areKeysSame(message.sender_pubKey, SB.channel.keys.exportable_verifiedGuest_pubKey)) {
+        if (document.Snackabra.crypto.areKeysSame(message.sender_pubKey, document.Snackabra.channel.keys.exportable_verifiedGuest_pubKey)) {
           username += "  (Verified)"
-        } else if (SB.crypto.areKeysSame(message.sender_pubKey, SB.channel.keys.exportable_owner_pubKey)) {
+        } else if (document.Snackabra.crypto.areKeysSame(message.sender_pubKey, document.Snackabra.channel.keys.exportable_owner_pubKey)) {
           username += "  (Owner)"
         }
       }
     } else {
       username = 'Me';
-      user_id = JSON.stringify(SB.identity.exportable_pubKey);
+      user_id = JSON.stringify(document.Snackabra.identity.exportable_pubKey);
     }
     return { _id: user_id, name: username };
   }
