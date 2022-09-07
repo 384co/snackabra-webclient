@@ -257,7 +257,7 @@ const ChatRoom = (props) => {
           return <RenderChatFooter removeInputFiles={removeInputFiles} files={files} loading={loading} />
         }}
         renderBubble={(props) => {
-          // return <RenderBubble {...props} keys={activeChatContext.getKeys()} SB={SB} />
+          return <RenderBubble {...props} keys={activeChatContext.getKeys()} SB={SB} />
         }}
         renderSend={RenderSend}
         renderComposer={(props) => {

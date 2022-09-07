@@ -1,9 +1,6 @@
 import React from 'react'
 import { Grid, Typography } from "@mui/material";
-import { areKeysSame } from "../../utils/crypto";
 import { Bubble } from "react-native-gifted-chat";
-import ActiveChatContext from "../../contexts/ActiveChatContext";
-import { useContext } from "react";
 
 const RenderBubble = (props) => {
 
@@ -84,8 +81,24 @@ const RenderBubble = (props) => {
         }
       }
     }
+    else if (props.currentMessage._id.match(/^sending_/)) {
+      newProps = {
+        wrapperStyle: {
+          left: {
+            borderColor: "gray",
+            borderStyle: "solid",
+            borderWidth: "4px",
+          },
+          right: {
+            borderColor: "gray",
+            borderStyle: "solid",
+            borderWidth: "4px",
+          }
+        }
+      }
+    }
     // else if (props.currentMessage.user._id === JSON.stringify(state.keys.exportable_room_pubKey)) {
-    else if (areKeysSame(current_user_key, props.keys.exportable_owner_pubKey)) {
+    else if (props.SB.areKeysSame(current_user_key, props.keys.exportable_owner_pubKey)) {
       newProps = {
         wrapperStyle: {
           left: {
@@ -102,7 +115,7 @@ const RenderBubble = (props) => {
       }
     }
     //else if (props.currentMessage.user._id === JSON.stringify(state.keys.exportable_verifiedGuest_pubKey)) {
-    else if (areKeysSame(current_user_key, props.keys.exportable_verifiedGuest_pubKey)) {
+    else if (props.SB.areKeysSame(current_user_key, props.keys.exportable_verifiedGuest_pubKey)) {
       newProps = {
         wrapperStyle: {
           left: {
@@ -124,7 +137,7 @@ const RenderBubble = (props) => {
   // For username on top
   return (
     <Grid style={{ width: '90%' }}>
-      {(isSameUser(props.currentMessage, props.previousMessage) && isSameDay(props.currentMessage, props.previousMessage)) || areKeysSame(current_user_key, props.keys.exportable_pubKey)
+      {(isSameUser(props.currentMessage, props.previousMessage) && isSameDay(props.currentMessage, props.previousMessage)) || props.SB.areKeysSame(current_user_key, props.keys.exportable_pubKey)
         ? null
         : <Typography variant={'body1'} style={{
           width: '50vw',
