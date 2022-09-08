@@ -64,7 +64,7 @@ export default function AttachMenu(props) {
             <PhotoLibraryOutlinedIcon />
           </ListItemIcon>
           <input
-            id={'fileInput'}
+            id='fileInput'
             onChange={selectPhoto}
             type="file"
             hidden

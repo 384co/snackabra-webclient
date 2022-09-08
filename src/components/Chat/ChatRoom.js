@@ -21,9 +21,11 @@ import GiftedMessage from "../../utils/chat/Messages/GiftedMessage";
 import RenderSend from "./RenderSend";
 import RenderComposer from "./RenderComposer";
 import SBMessage from "../../utils/chat/Messages/SnackabraMessage";
+import ActiveChatContext from "../../contexts/ActiveChatContext";
 
 
 const ChatRoom = (props) => {
+  const activeChatContext = React.useContext(ActiveChatContext)
   const roomContext = useContext(RoomContext)
   const Notifications = useContext(NotificationContext)
 
@@ -236,14 +238,17 @@ const ChatRoom = (props) => {
         user={user}
         inverted={false}
         alwaysShowSend={true}
-        //loadEarlier={activeChatContext.moreMessages}
-        //isLoadingEarlier={activeChatContext.loadingMore}
+        loadEarlier={activeChatContext.moreMessages}
+        isLoadingEarlier={activeChatContext.loadingMore}
         onLoadEarlier={getOldMessages}
         renderActions={(props) => {
-          return <RenderAttachmentIcon {...props} addFile={loadFiles} openAttachMenu={openAttachMenu}
-                                       showLoading={showLoading} />
+          return <RenderAttachmentIcon
+            {...props}
+            addFile={loadFiles}
+            openAttachMenu={openAttachMenu}
+            showLoading={showLoading} />
         }}
-        // renderUsernameOnMessage={true}
+        //renderUsernameOnMessage={true}
         // infiniteScroll={true}   // This is not supported for web yet
         renderMessageImage={(props) => {
           return <RenderImage {...props} openImageOverlay={openImageOverlay} />

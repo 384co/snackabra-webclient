@@ -7,7 +7,7 @@ import { useState, useContext } from "react"
 import * as utils from '../../utils/utils';
 import RoomContext from "../../contexts/RoomContext";
 
-const ExportRoomKeys = (props) => {
+const ExportRoomKeys = () => {
   const roomContext = useContext(RoomContext)
   const [fileName, setFilename] = useState('SnackabraData');
 
@@ -49,15 +49,13 @@ const ExportRoomKeys = (props) => {
 
   return (
     <Grid id="key_export"
-          xs={12}
           container
           direction="row"
           justifyContent="flex-start"
           alignItems="flex-start">
 
       {Object.keys(roomContext.roomMetadata).length > 0 || Object.keys(roomContext.contacts).length > 0 || Object.keys(roomContext.rooms).length > 0
-        ? <Grid xs={12}
-                spacing={2}
+        ? <Grid spacing={2}
                 container
                 direction="row"
                 justifyContent="flex-start"

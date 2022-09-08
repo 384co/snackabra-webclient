@@ -35,6 +35,7 @@ function RenderAttachmentIcon(props) {
       <AttachmentIcon />
       <input
         onChange={selectPhoto}
+        id={'fileInput'}
         type="file"
         hidden
       />

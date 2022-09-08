@@ -141,11 +141,7 @@ function ResponsiveDrawer(props) {
                                  focused autoComplete={false} autoFocus />
                     }
                   </Grid>
-                  <Grid xs={5}
-                        direction="row"
-                        justifyContent="flex-end"
-                        alignItems="center"
-                        container>
+                  <Grid xs={5} item>
                     <IconButton onClick={() => {
                       editRoom(room)
                     }}>

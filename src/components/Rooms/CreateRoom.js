@@ -39,8 +39,7 @@ const CreateRoom = (props) => {
   }
 
   return (
-    <Grid xs={12}
-          spacing={2}
+    <Grid spacing={2}
           container
           direction="row"
           justifyContent="flex-start"

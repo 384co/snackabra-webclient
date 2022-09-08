@@ -1,9 +1,9 @@
 /* Copyright (c) 2021 Magnusson Institute, All Rights Reserved */
 
 import React from 'react';
-import ReactDOM from 'react-dom';
 import './index.css';
 import App from './App';
+import { createRoot } from 'react-dom/client';
 import IndexedKV from "./utils/IndexedKV";
 const SB = require('snackabra')
 const sb_config = {
@@ -11,13 +11,15 @@ const sb_config = {
   channel_ws: process.env.REACT_APP_ROOM_SERVER_WS,
   storage_server: process.env.REACT_APP_STORAGE_SERVER
 };
+const container = document.getElementById('root');
+const root = createRoot(container);
 
 Object.defineProperty(document, 'Snackabra', {
   value: new SB.Snackabra(sb_config)
 });
 
 document.addEventListener("localKvReady", function(e) {
-  ReactDOM.render(<App />, document.getElementById('root'));
+  root.render(<App />);
 });
 
 

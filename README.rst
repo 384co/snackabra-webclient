@@ -181,7 +181,7 @@ Following files should be in the git::
     │   │       ├── Snackabra.css
     │   │       └── Snackabra.js
     │   ├── index.css
-    │   ├── index.tsx
+    │   ├── index.js
     │   ├── locales
     │   │   └── en
     │   │       ├── messages.js

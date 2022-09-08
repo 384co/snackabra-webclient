@@ -1,7 +1,6 @@
 import * as React from "react"
 import { Trans } from "@lingui/macro";
-import { FormControl, Grid, IconButton, InputAdornment, InputLabel, OutlinedInput, TextField, Typography } from "@mui/material";
-import DownloadIcon from '@mui/icons-material/Download';
+import { Grid, TextField, Typography } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
 import { useState, useContext } from "react"
 import NotificationContext from "../../contexts/NotificationContext";
@@ -10,7 +9,7 @@ import * as utils from "../../utils/utils";
 
 
 
-const ImportRoomKeys = (props) => {
+const ImportRoomKeys = () => {
   const Notifications = useContext(NotificationContext)
   const Room = useContext(RoomContext)
   const [key, setKey] = useState('No file selected');
@@ -64,7 +63,6 @@ const ImportRoomKeys = (props) => {
 
   return (
     <Grid id="key_import"
-          xs={12}
           spacing={2}
           container
           direction="row"
