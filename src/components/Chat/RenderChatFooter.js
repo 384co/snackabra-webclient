@@ -1,13 +1,35 @@
 import React from 'react'
-import { Grid, IconButton, Paper } from "@mui/material";
+import { CircularProgress, Grid, IconButton, Paper } from "@mui/material";
 import CloseIcon from '@mui/icons-material/Close';
-import { useContext } from "react";
-import ActiveChatContext from "../../contexts/ActiveChatContext";
 
 const RenderChatFooter = (props) => {
 
+  const [files, setFiles] = React.useState([])
+  const [loading, setLoading] = React.useState(props.loading)
 
-  if (typeof props.imgUrl === 'string') {
+  React.useEffect(() => {
+    setFiles(props.files)
+  }, [props.files])
+
+  React.useEffect(() => {
+    setLoading(props.loading)
+  }, [props.loading])
+
+  if (loading) {
+    return (
+      <Grid sx={{ width: '100%', minHeight: "50px" }}
+            direction="row"
+            justifyContent="center"
+            alignItems="center"
+            container>
+        <Grid item>
+          <CircularProgress color="inherit" />
+        </Grid>
+      </Grid>
+    );
+  }
+
+  if (files.length > 0) {
     return (
       <Grid item>
         <Paper sx={{
@@ -16,11 +38,22 @@ const RenderChatFooter = (props) => {
           <Grid
             container
             direction="row"
-            justifyContent="space-between"
+            justifyContent="flex-start"
             alignItems="flex-start"
           >
-            <img id='previewImage' width='150px' src={props.imgUrl} alt='Image preview'></img>
-            <IconButton onClick={props.removeInputFiles} aria-label="close">
+            {files.map((file, index) => {
+              return (
+                <img key={index} id='previewImage'
+                     width='150px'
+                     style={{ padding: 8 }}
+                     src={file.restrictedUrl}
+                     alt='Image preview' />
+              )
+            })
+
+            }
+
+            <IconButton sx={{ position: "absolute", right: 0 }} onClick={props.removeInputFiles} aria-label="close">
               <CloseIcon />
             </IconButton>
           </Grid>
