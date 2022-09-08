@@ -1,43 +1,58 @@
 import * as React from 'react';
 import { IconButton } from "@mui/material";
 import AttachmentIcon from '@mui/icons-material/Attachment';
-import ActiveChatContext from "../../contexts/ActiveChatContext";
+import { getFileData, restrictPhoto } from "../../utils/snackabra-js/ImageProcessor";
+
+class FileAttachment {
+  data
+  dataUrl
+  restricted
+  restrictedUrl
+
+  constructor(input) {
+    return new Promise(async (resolve) => {
+      const b64url = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.readAsDataURL(input);
+      });
+      this.dataUrl = b64url
+      this.data = input
+      this.restricted = await restrictPhoto(input, 15, "image/jpeg", 0.92)
+      this.restrictedUrl = await getFileData(this.restricted, 'url')
+      resolve(this)
+    })
+  }
+}
 
 function RenderAttachmentIcon(props) {
-  const activeChatContext = React.useContext(ActiveChatContext)
-  const [file, setFile] = React.useState('');
 
-  let fileReader;
-
-  const selectPhoto = (e) => {
+  const selectFiles = async (e) => {
+    props.showLoading()
     try {
-      const photo = e.target.files[0];
-      fileReader = new FileReader();
-      fileReader.onloadend = handleFileRead;
-      fileReader.readAsText(photo);
-      activeChatContext.previewImage(photo, e.target.files[0])
-      if(typeof props.handleClose === 'function'){
-        props.handleClose()
+      const files = []
+      for (let i in e.target.files) {
+        if (typeof e.target.files[i] === 'object') {
+          const attachment = await new FileAttachment(e.target.files[i])
+          files.push(attachment)
+
+        }
       }
-      setFile('')
+      props.addFile(files)
     } catch (e) {
       console.log(e)
     }
   }
 
-  const handleFileRead = (e) => {
-    const content = fileReader.result;
-    setFile(content)
-  };
-
   return (
     <IconButton component="label" id={'attach-menu'} aria-label="attach" size="large">
       <AttachmentIcon />
       <input
-        onChange={selectPhoto}
-        id={'fileInput'}
+        id="fileInput"
+        onChange={selectFiles}
         type="file"
         hidden
+        multiple
       />
     </IconButton>
   )

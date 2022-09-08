@@ -169,7 +169,7 @@ const ChatRoom = (props) => {
   }
 
   const loadFiles = async (loaded) => {
-
+    console.log(loaded)
     setFiles(loaded)
     setLoading(false)
   }
