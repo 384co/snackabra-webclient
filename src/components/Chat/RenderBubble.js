@@ -80,8 +80,7 @@ const RenderBubble = (props) => {
           },
         }
       }
-    }
-    else if (props.currentMessage._id.match(/^sending_/)) {
+    } else if (props.currentMessage._id.match(/^sending_/)) {
       newProps = {
         wrapperStyle: {
           left: {
@@ -145,7 +144,7 @@ const RenderBubble = (props) => {
           left: 0,
           fontSize: 12,
           backgroundColor: 'transparent',
-          color: '#aaa'
+          color: props.currentMessage.whispered || props.position === 'left' ? '#aaa' : 'white'
         }}>
           {typeof props.currentMessage.user.name === 'string' ? props.currentMessage.user.name : ''}
         </Typography>}

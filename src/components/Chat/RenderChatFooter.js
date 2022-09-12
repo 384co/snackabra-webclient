@@ -1,5 +1,5 @@
 import React from 'react'
-import { CircularProgress, Grid, IconButton, Paper } from "@mui/material";
+import { Divider } from "@mui/material";
 import CloseIcon from '@mui/icons-material/Close';
 
 const RenderChatFooter = (props) => {

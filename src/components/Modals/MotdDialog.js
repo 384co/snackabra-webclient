@@ -3,11 +3,11 @@ import ResponsiveDialog from "../ResponsiveDialog";
 import { Grid, TextField, Typography } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
 import { useContext, useState,useEffect } from "react";
-import ActiveChatContext from "../../contexts/ActiveChatContext";
+import RoomContext from "../../contexts/RoomContext";
 import { Trans } from "@lingui/macro";
 
 export default function MotdDialog(props) {
-  const activeChatContext = useContext(ActiveChatContext)
+  const Room = useContext(RoomContext)
 
   const [open, setOpen] = useState(props.open);
   const [text, setText] = useState('');
@@ -21,7 +21,7 @@ export default function MotdDialog(props) {
   }
 
   const sendWhisper = () => {
-    activeChatContext.sendMessage(text, true);
+    Room.sendMessage(text, true);
     setText('')
     setOpen(false)
   }
@@ -36,11 +36,11 @@ export default function MotdDialog(props) {
             alignItems="flex-start">
         <Grid item xs={12}>
           <Typography variant={'body1'}>
-            {activeChatContext.motd !== '' &&
-              <Trans id='motd text'>Message of the day: {activeChatContext.motd}</Trans>}
+            {Room.motd !== '' &&
+              <Trans id='motd text'>Message of the day: {Room.motd}</Trans>}
           </Typography>
         </Grid>
-        {!activeChatContext.room_owner ?
+        {!Room.room_owner ?
           <>
             <TextField
               id="whisper-text"

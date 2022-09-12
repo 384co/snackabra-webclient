@@ -7,6 +7,18 @@ function RenderComposer(props) {
   const [filesAttached, setFilesAttached] = React.useState(props.filesAttached)
 
   React.useEffect(() => {
+    const sendButton = document.getElementById('send-button');
+    sendButton.addEventListener('click', handleSend)
+  }, [])
+
+  const handleSend = () => {
+    setTimeout(()=>{
+      setText('')
+      props.onTextChanged('')
+    },250)
+  }
+
+  React.useEffect(() => {
     setFilesAttached(props.filesAttached)
     if (props.filesAttached) {
       setText('')
@@ -17,8 +29,7 @@ function RenderComposer(props) {
   const checkForSend = (e) => {
     if (e.keyCode === 13 && !e.ctrlKey && !e.shiftKey) {
       document.getElementById('send-button').click()
-      setText('')
-      props.onTextChanged('')
+      handleSend();
     }
   }
 

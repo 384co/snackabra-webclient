@@ -15,7 +15,6 @@ import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import Toolbar from '@mui/material/Toolbar';
 import { useContext } from "react";
-import RoomContext from "../contexts/RoomContext";
 import ImportDialog from "../components/Modals/ImportDialog";
 import { useParams } from "react-router-dom";
 import { Grid, Hidden, IconButton, TextField, Typography } from "@mui/material";
@@ -25,13 +24,18 @@ import AdminDialog from "../components/Modals/AdminDialog";
 import { downloadRoomData } from "../utils/utils";
 import Fab from '@mui/material/Fab';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import NotificationContext from "../contexts/NotificationContext";
+import RoomContext from "../contexts/RoomContext";
+import ActiveChatContext from "../contexts/ActiveChatContext";
 
 const drawerWidth = 240;
 
 const page = window.location;
 
 function ResponsiveDrawer(props) {
+  const activeChatContext = useContext(ActiveChatContext)
   const roomContext = useContext(RoomContext)
+  const Notifications = useContext(NotificationContext)
   let { room_id } = useParams();
   const { window } = props;
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -227,7 +231,8 @@ function ResponsiveDrawer(props) {
         </Grid>)
         }
         {room_id &&
-          (<ChatRoom roomId={room_id} />)
+          (<ChatRoom roomId={room_id} roomContext={roomContext} Notifications={Notifications}
+                     activeChatContext={activeChatContext} />)
         }
       </Box>
     </Box>

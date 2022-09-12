@@ -3,10 +3,10 @@ import ResponsiveDialog from "../ResponsiveDialog";
 import { Grid, OutlinedInput } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
 import { useContext, useState, useEffect } from "react";
-import ActiveChatContext from "../../contexts/ActiveChatContext";
+import RoomContext from "../../contexts/RoomContext";
 
 export default function ChangeNameDialog(props) {
-  const activeChatContext = useContext(ActiveChatContext)
+  const Room = useContext(RoomContext)
 
   const [open, setOpen] = useState(props.open);
   const [username, setUsername] = useState(props.open);
@@ -16,8 +16,8 @@ export default function ChangeNameDialog(props) {
   }, [props.open])
 
   useEffect(() => {
-    setUsername(activeChatContext.changeUsername.name)
-  }, [activeChatContext.changeUsername.name])
+    setUsername(Room.changeUsername?.name)
+  }, [Room.changeUsername?.name])
 
   const updateUsername = (e) => {
     setUsername(e.target.value)
@@ -25,14 +25,14 @@ export default function ChangeNameDialog(props) {
 
   const setMe = () => {
     setUsername('Me')
-    localStorage.setItem(activeChatContext.roomId + '_username', 'Me')
-    activeChatContext.saveUsername(username)
+    localStorage.setItem(Room.roomId + '_username', 'Me')
+    Room.saveUsername(username)
     setOpen(false)
   }
 
   const saveUserName = () =>{
-    localStorage.setItem(activeChatContext.roomId + '_username', username)
-    activeChatContext.saveUsername(username)
+    localStorage.setItem(Room.roomId + '_username', username)
+    Room.saveUsername(username)
     setOpen(false)
   }
 

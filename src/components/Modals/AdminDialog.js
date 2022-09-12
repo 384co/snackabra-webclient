@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import ResponsiveDialog from "../ResponsiveDialog";
 import { Grid, TextField, Typography } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
-import ActiveChatContext from "../../contexts/ActiveChatContext";
+import RoomContext from "../../contexts/RoomContext";
 import ConfirmLockDialog from "./ConfirmLockDialog";
 import NotificationContext from "../../contexts/NotificationContext";
 
@@ -14,10 +14,10 @@ function isNumeric(v) {
 }
 
 const AdminDialog = (props) => {
-  const activeChatContext = React.useContext(ActiveChatContext);
+  const Room = React.useContext(RoomContext);
   const notify = React.useContext(NotificationContext);
-  const [roomCapacity, setRoomCapacity] = useState(activeChatContext.roomCapacity);
-  const [motd, setMOTD] = useState(activeChatContext.motd);
+  const [roomCapacity, setRoomCapacity] = useState(Room.roomCapacity);
+  const [motd, setMOTD] = useState(Room.motd);
   const [open, setOpen] = useState(props.open);
   const [openLockDialog, setOpenLockDialog] = useState(false);
 
@@ -26,15 +26,15 @@ const AdminDialog = (props) => {
   }, [props.open])
 
   React.useEffect(() => {
-    setRoomCapacity(activeChatContext.roomCapacity);
-  }, [activeChatContext.roomCapacity]);
+    setRoomCapacity(Room.roomCapacity);
+  }, [Room.roomCapacity]);
 
   React.useEffect(() => {
-    setMOTD(activeChatContext.motd);
-  }, [activeChatContext.motd])
+    setMOTD(Room.motd);
+  }, [Room.motd])
 
   const lockRoom = () => {
-    activeChatContext.lockRoom();
+    Room.lockRoom();
     props.onClose();
   }
 
@@ -48,7 +48,7 @@ const AdminDialog = (props) => {
 
   const setCapacity = () => {
     if (isNumeric(roomCapacity)) {
-      activeChatContext.updateRoomCapacity(Number(roomCapacity))
+      Room.updateRoomCapacity(Number(roomCapacity))
       props.onClose();
     }else{
       notify.setMessage('Invalid room capacity');
@@ -85,7 +85,7 @@ const AdminDialog = (props) => {
             sx={{ pb: 1, pt: 1 }}
           />
           <StyledButton variant={"contained"} onClick={() => {
-            activeChatContext.setMOTD(motd)
+            Room.setMOTD(motd)
             props.onClose()
           }}>
             <Typography variant={"button"}>Save MOTD</Typography>

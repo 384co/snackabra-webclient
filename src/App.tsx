@@ -11,8 +11,6 @@ import theme from "./theme";
 import {ThemeProvider} from "@mui/material";
 import {NotificationProvider} from "./contexts/NotificationContext";
 import NotificationBar from "./components/NotificationBar";
-import {ActiveRoomProvider} from "./contexts/ActiveChatContext";
-import {ServiceWorkerProvider} from "./contexts/ServiceWorkerContext"
 
 i18n.loadLocaleData({
   en: {plurals: en},
@@ -26,11 +24,7 @@ const App: React.FC = () => {
       <ThemeProvider theme={theme}>
         <NotificationProvider>
           <RoomProvider>
-            <ActiveRoomProvider>
-              <ServiceWorkerProvider>
-                <AppRoutes />
-              </ServiceWorkerProvider>
-            </ActiveRoomProvider>
+            <AppRoutes />
           </RoomProvider>
           <NotificationBar />
         </NotificationProvider>

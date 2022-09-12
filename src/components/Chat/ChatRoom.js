@@ -3,279 +3,359 @@
 import * as React from 'react';
 import { GiftedChat } from 'react-native-gifted-chat';
 import RenderBubble from "./RenderBubble";
-import { useContext, useState } from "react";
 import RenderAttachmentIcon from "./RenderAttachmentIcon";
 import ImageOverlay from "../Modals/ImageOverlay";
 import RenderImage from "./RenderImage";
-import { retrieveData, saveImage } from "../../utils/snackabra-js/ImageProcessor";
 import ChangeNameDialog from "../Modals/ChangeNameDialog";
 import MotdDialog from "../Modals/MotdDialog";
-import NotificationContext from "../../contexts/NotificationContext";
 import RenderChatFooter from "./RenderChatFooter";
 import RenderTime from "./RenderTime";
 import { View } from "react-native";
 import AttachMenu from "./AttachMenu";
-import RoomContext from "../../contexts/RoomContext";
 import FirstVisitDialog from "../Modals/FirstVisitDialog";
 import GiftedMessage from "../../utils/chat/Messages/GiftedMessage";
 import RenderSend from "./RenderSend";
 import RenderComposer from "./RenderComposer";
-import SBMessage from "../../utils/chat/Messages/SnackabraMessage";
-import ActiveChatContext from "../../contexts/ActiveChatContext";
+import { SBMessage } from "snackabra"
 
 
-const ChatRoom = (props) => {
-  const activeChatContext = React.useContext(ActiveChatContext)
-  const roomContext = useContext(RoomContext)
-  const Notifications = useContext(NotificationContext)
+class ChatRoom extends React.Component {
 
-  const [openPreview, setOpenPreview] = useState(false);
-  const [openChangeName, setOpenChangeName] = useState(false);
-  const [openFirstVisit, setOpenFirstVisit] = useState(false);
-  const [openMotd, setMotdDialog] = useState(false);
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const attachMenu = Boolean(anchorEl);
-  const [img, setImg] = useState('');
-  const [imgLoaded, setImgLoaded] = useState(false);
-  const [messages, setMessages] = useState([]);
-  const [controlMessages, setControlMessages] = useState([]);
-  const [roomId, setRoomId] = useState(props.roomId || 'offline')
-  const [files, setFiles] = React.useState([]); // [{dataUrl: "base64 data url", file: "raw file input}]
-  const [loading, setLoading] = React.useState(false);
-  const [user, setUser] = React.useState({});
-  const [height, setHeight] = React.useState(0);
-  const SB = document.Snackabra;
+  SB = document.Snackabra;
+  state = {
+    openPreview: false,
+    openChangeName: false,
+    openFirstVisit: false,
+    openMotd: false,
+    anchorEl: null,
+    img: '',
+    imgLoaded: false,
+    messages: [],
+    controlMessages: [],
+    roomId: this.props.roomId || 'offline',
+    files: [],
+    loading: false,
+    user: {},
+    height: 0,
+  }
 
-  React.useEffect(() => {
-    roomContext.goToRoom(props.roomId)
+  componentDidMount() {
 
-    function handleResize() {
-      setHeight(window.innerHeight)
+    const handleResize = () => {
+      this.setState({ height: window.innerHeight })
     }
 
     window.addEventListener('resize', handleResize)
     handleResize();
 
-    if (localStorage.getItem(props.roomId) === null && props.roomId !== '') {
-      setOpenFirstVisit(true);
+    if (localStorage.getItem(this.props.roomId) === null && this.props.roomId !== '') {
+      this.setState({ openFirstVisit: true })
     } else {
-      const key = JSON.parse(localStorage.getItem(props.roomId))
-      document.Snackabra.setIdentity(key).then(async () => {
-        await document.Snackabra.connect(props.roomId)
-        setUser(getUser());
-        document.Snackabra.channel.api.getOldMessages(0).then(async (messages) => {
+      const key = JSON.parse(localStorage.getItem(this.props.roomId))
+      this.SB.setIdentity(key).then(async () => {
+        await this.SB.connect(this.props.roomId)
+        this.SB.channel.socket.onJoin = async (message) => {
+          console.log('here', message)
+        }
+        this.props.roomContext.goToRoom(this.props.roomId, this.SB.channel.admin)
+        this.props.roomContext.loadRoom(this.SB.channel.metaData, this.sendSystemInfo, this.sendSystemMessage)
+        this.setState({ user: this.getUser() })
+        this.SB.channel.api.getOldMessages(0).then(async (messages) => {
           const _oldMessages = [];
           for (let x in messages) {
             const message = {};
             message[x] = messages[x];
-            //const sb_message = new SBMessage(x, )
-            _oldMessages.push(JSON.parse(await document.Snackabra.channel.socket.receive(message)))
+            const sb_message = await this.sb2giftedMessage(JSON.parse(await this.SB.channel.socket.receive(message)))
+            if (sb_message) {
+              _oldMessages.push(sb_message)
+            }
           }
-          console.log(_oldMessages)
+          this.setState({ messages: _oldMessages })
         });
-
+        this.SB.channel.socket.onMessage = async (message) => {
+          const sb_message = await this.sb2giftedMessage(JSON.parse(message))
+          if (sb_message) {
+            this.setState({ messages: [...this.state.messages, sb_message] })
+          }
+        }
       })
     }
-  }, [])
+  }
+
+
+  sb2giftedMessage = async (message) => {
+    if (message.control) {
+      this.setState({ controlMessages: [...this.state.controlMessages, message] })
+      return;
+    }
+    let _text_verified;
+    let _image_verified = true;
+    let _imageMetadata_verified = true;
+    const sign = message.sign;
+    const _image_sign = message.image_sign
+    const _imageMetadata_sign = message.imageMetadata_sign;
+    if (!sign || !_image_sign || !_imageMetadata_sign) {
+      _text_verified = false
+    } else {
+      const sender_pubKey = await this.SB.crypto.importKey("jwk", message.sender_pubKey, "ECDH", true, []);
+      const verificationKey = await this.SB.crypto.deriveKey(this.SB.channel.keys.room_privateSignKey, sender_pubKey, "HMAC", false, ["sign", "verify"])
+      _text_verified = await this.SB.crypto.verify(verificationKey, sign, message.contents)
+      _image_verified = await this.SB.crypto.verify(verificationKey, _image_sign, message.image)
+      _imageMetadata_verified = await this.SB.crypto.verify(verificationKey, _imageMetadata_sign, typeof message.imageMetaData === "object" ? JSON.stringify(message.imageMetaData) : message.imageMetaData)
+    }
+    return {
+      _id: message._id,
+      text: message.contents,
+      user: this.getUser(message),
+      whispered: message.encrypted,
+      createdAt: parseInt(message._id.slice(-42), 2),
+      verified: _text_verified && _image_verified && _imageMetadata_verified,
+      image: message.image,
+      imageMetaData: typeof message.imageMetaData === "object" ? message.imageMetaData : JSON.parse(message.imageMetaData)
+
+    }
+
+  }
 
   // START NEW FUNCTIONS ***************************************************
-  const getUser = (message = null) => {
-
+  getUser = (message = null) => {
     let username, user_id;
-    const contacts = roomContext.contacts;
-
+    const contacts = this.props.roomContext.contacts;
     if (message) {
+      if (message.verificationToken) {
+        return
+      }
       user_id = JSON.stringify(message.sender_pubKey);
       let user_key = message.sender_pubKey.x + " " + message.sender_pubKey.y;
       const unnamed = ['Anonymous', 'No Name', 'Nameless', 'Incognito', 'Voldemort', 'Uomo Senza Nome', 'The Kid', 'Gunslinger', 'IT ', 'Person in Black', 'बेनाम', 'βλέμμυες', '混沌'];
       const local_username = contacts.hasOwnProperty(user_key) && contacts[user_key].split(' ')[0] !== 'User' && !unnamed.includes(contacts[user_key].trim()) ? contacts[user_key] : 'Unnamed';
       contacts[user_key] = local_username;
       const alias = message.hasOwnProperty('sender_username') ? message.sender_username : '';
-      if (user_key === (document.Snackabra.identity.exportable_pubKey.x + " " + document.Snackabra.identity.exportable_pubKey.y) || local_username === 'Me') {
+      if (user_key === (this.SB.identity.exportable_pubKey.x + " " + this.SB.identity.exportable_pubKey.y) || local_username === 'Me') {
         contacts[user_key] = 'Me';
         username = 'Me';
-        user_id = JSON.stringify(document.Snackabra.identity.exportable_pubKey);
+        user_id = JSON.stringify(this.SB.identity.exportable_pubKey);
       } else {
         if (alias !== '') {
           username = (local_username === alias || local_username === 'Unnamed') ? alias : alias + '  (' + local_username + ')';
         } else {
           username = '(' + local_username + ')';
         }
-        if (document.Snackabra.crypto.areKeysSame(message.sender_pubKey, document.Snackabra.channel.keys.exportable_verifiedGuest_pubKey)) {
+        if (this.SB.crypto.areKeysSame(message.sender_pubKey, this.SB.channel.keys.exportable_verifiedGuest_pubKey)) {
           username += "  (Verified)"
-        } else if (document.Snackabra.crypto.areKeysSame(message.sender_pubKey, document.Snackabra.channel.keys.exportable_owner_pubKey)) {
+        } else if (this.SB.crypto.areKeysSame(message.sender_pubKey, this.SB.channel.keys.exportable_owner_pubKey)) {
           username += "  (Owner)"
         }
       }
     } else {
       username = 'Me';
-      user_id = JSON.stringify(document.Snackabra.identity.exportable_pubKey);
+      user_id = JSON.stringify(this.SB.identity.exportable_pubKey);
     }
     return { _id: user_id, name: username };
   }
 
-  const notify = (message, severity) => {
-    Notifications.setMessage(message);
-    Notifications.setSeverity(severity);
-    Notifications.setOpen(true)
+  notify = (message, severity) => {
+    this.props.Notifications.setMessage(message);
+    this.props.Notifications.setSeverity(severity);
+    this.props.Notifications.setOpen(true)
   }
 
-  const openImageOverlay = (message) => {
-    setImg(message.image);
-    setOpenPreview(true)
+  openImageOverlay = (message) => {
+    this.setState({ img: message.image, openPreview: true })
     try {
-
-      retrieveData(message, controlMessages).then((data) => {
+      this.SB.storage.retrieveDataFromMessage(message, this.state.controlMessages).then((data) => {
         if (data.hasOwnProperty('error')) {
           //activeChatContext.sendSystemMessage('Could not open image: ' + data['error']);
         } else {
-          setImgLoaded(true);
-          setImg(data['url']);
+          this.setState({ img: data['url'], imgLoaded: true })
         }
       })
     } catch (error) {
       console.log('openPreview() exception: ' + error.message);
       //activeChatContext.sendSystemMessage('Could not open image (' + error.message + ')');
-      setOpenPreview(false)
+      this.setState({ openPreview: false })
     }
   }
 
-  const imageOverlayClosed = () => {
-    setImg('')
-    setImgLoaded(false);
-    setOpenPreview(false)
+  imageOverlayClosed = () => {
+    this.setState({ openPreview: false, img: '', imgLoaded: false })
   }
 
-  const promptUsername = () => {
-    setOpenChangeName(true)
+  promptUsername = () => {
+    this.setState({ openChangeName: true })
   }
 
 
-  const handleReply = (user) => {
+  handleReply = (user) => {
     try {
-      if (roomContext.roomOwner) {
-        roomContext.handleReply(user)
+      if (this.roomContext.roomOwner) {
+        this.roomContext.handleReply(user)
       } else {
-        notify('Whisper is only for room owners.', 'info')
+        this.notify('Whisper is only for room owners.', 'info')
       }
     } catch (e) {
       console.log(e);
-      notify(e.message, 'error')
+      this.notify(e.message, 'error')
     }
   }
 
-  const getOldMessages = async () => {
-    document.Snackabra.channel.api.getOldMessages()
+  getOldMessages = async () => {
+    this.SB.channel.api.getOldMessages()
   }
 
-  const loadFiles = async (loaded) => {
-    console.log(loaded)
-    setFiles(loaded)
-    setLoading(false)
+  loadFiles = async (loaded) => {
+    this.setState({ loading: false, files: loaded })
   }
-
-  const sendFiles = () => {
+  //TODO: for images render in chat and then replace with received message
+  sendFiles = () => {
     const fileMessages = [];
-    files.forEach((file, i) => {
+    this.state.files.forEach((file, i) => {
+      /*
       const message = new GiftedMessage({
         createdAt: new Date().toString(),
         text: "",
         image: file.restrictedUrl,
-        user: user,
+        user: this.state.user,
         _id: "1fa5a124-451d-4fc8-88eb-49309d47732" + i
-      })
+      }, true)
       fileMessages.push(message)
+
+       */
+      this.SB.sendFile(file.data)
     })
-    setMessages([...messages, ...fileMessages])
-    removeInputFiles()
+    //setMessages([...messages, ...fileMessages])
+    this.removeInputFiles()
   }
 
 
-  const sendMessages = (giftedMessage) => {
+  sendMessages = async (giftedMessage) => {
     if (giftedMessage[0].text === "") {
-      if (files.length > 0) {
-        sendFiles()
+      if (this.state.files.length > 0) {
+        this.sendFiles()
       }
     } else {
-      const message = new GiftedMessage(giftedMessage[0])
-      setMessages([...messages, message])
+      //const message = new GiftedMessage(giftedMessage[0], true)
+      //setMessages([...messages, message])
       //activeChatContext.sendMessage(message)
+      const message = await new SBMessage(
+        giftedMessage[0].text,
+        this.SB.channel.keys.personal_signKey,
+        this.SB.identity.exportable_pubKey
+      )
+      this.SB.sendMessage(message)
     }
   }
 
-  const openAttachMenu = (e) => {
-    setAnchorEl(e.currentTarget);
+  sendSystemInfo = (msg_string) => {
+    this.setState({
+      messages: [...this.state.messages, {
+        _id: this.state.messages.length,
+        text: msg_string,
+        user: { _id: 'system', name: 'System Message' },
+        whispered: false,
+        verified: true,
+        info: true
+      }]
+    })
   }
 
-  const handleClose = () => {
-    setAnchorEl(null);
+  sendSystemMessage = (message) => {
+    this.setState({
+      messages: [...this.state.messages, {
+        _id: this.state.messages.length,
+        text: message,
+        system: true
+      }]
+    })
+  }
+
+  openAttachMenu = (e) => {
+    this.setState({ anchorEl: e.currentTarget });
+  }
+
+  handleClose = () => {
+    this.setState({ anchorEl: null });
   };
 
-  const removeInputFiles = () => {
+  removeInputFiles = () => {
     if (document.getElementById('fileInput')) {
 
       document.getElementById('fileInput').value = '';
     }
-    setFiles([])
+    this.setState({ files: [] })
   }
 
-  const showLoading = () => {
-    setLoading(true)
+  showLoading = () => {
+    this.setState({ loading: false })
   }
-  return (
-    <View style={{ flexGrow: 1, flexBasis: 'fit-content', height: height - 48 }}>
-      <ImageOverlay open={openPreview} img={img} imgLoaded={imgLoaded} onClose={imageOverlayClosed} />
-      <ChangeNameDialog open={openChangeName} />
-      <MotdDialog open={openMotd} roomName={props.roomName} />
-      <AttachMenu open={attachMenu} handleClose={handleClose} />
-      <FirstVisitDialog open={openFirstVisit} onClose={() => {
-        setOpenFirstVisit(false)
-      }} roomId={roomId} />
-      <GiftedChat
-        messages={messages}
-        onSend={sendMessages}
-        // timeFormat='L LT'
-        user={user}
-        inverted={false}
-        alwaysShowSend={true}
-        loadEarlier={activeChatContext.moreMessages}
-        isLoadingEarlier={activeChatContext.loadingMore}
-        onLoadEarlier={getOldMessages}
-        renderActions={(props) => {
-          return <RenderAttachmentIcon
-            {...props}
-            addFile={loadFiles}
-            openAttachMenu={openAttachMenu}
-            showLoading={showLoading} />
-        }}
-        //renderUsernameOnMessage={true}
-        // infiniteScroll={true}   // This is not supported for web yet
-        renderMessageImage={(props) => {
-          return <RenderImage {...props} openImageOverlay={openImageOverlay} />
-        }}
-        scrollToBottom={true}
-        showUserAvatar={true}
-        onPressAvatar={promptUsername}
-        onLongPressAvatar={(context) => {
-          return handleReply(context)
-        }}
-        renderChatFooter={() => {
-          return <RenderChatFooter removeInputFiles={removeInputFiles} files={files} loading={loading} />
-        }}
-        renderBubble={(props) => {
-          return <RenderBubble {...props} keys={''} SB={SB} />
-        }}
-        renderSend={RenderSend}
-        renderComposer={(props) => {
-          return <RenderComposer {...props} filesAttached={files.length > 0} />
-        }}
-        onLongPress={() => false}
-        renderTime={RenderTime}
 
-      />
-    </View>
-  )
+  render() {
+    const attachMenu = Boolean(this.state.anchorEl);
 
+    return (
+
+      <View style={{
+        flexGrow: 1,
+        flexBasis: 'fit-content',
+        height: this.state.height - 48
+      }}>
+        <ImageOverlay open={this.state.openPreview} img={this.state.img} imgLoaded={this.state.imgLoaded}
+                      onClose={this.imageOverlayClosed} />
+        <ChangeNameDialog open={this.state.openChangeName} />
+        <MotdDialog open={this.state.openMotd} roomName={this.props.roomName} />
+        <AttachMenu open={attachMenu} handleClose={this.handleClose} />
+        <FirstVisitDialog open={this.state.openFirstVisit} onClose={() => {
+          this.setState({ openFirstVisit: false })
+        }} roomId={this.state.roomId} />
+        <GiftedChat
+          messages={this.state.messages}
+          onSend={this.sendMessages}
+          // timeFormat='L LT'
+          user={this.state.user}
+          inverted={false}
+          alwaysShowSend={true}
+          loadEarlier={this.props.roomContext.moreMessages}
+          isLoadingEarlier={this.props.roomContext.loadingMore}
+          onLoadEarlier={this.getOldMessages}
+          renderActions={(props) => {
+            return <RenderAttachmentIcon
+              {...props}
+              addFile={this.loadFiles}
+              openAttachMenu={this.openAttachMenu}
+              showLoading={this.showLoading} />
+          }}
+          //renderUsernameOnMessage={true}
+          // infiniteScroll={true}   // This is not supported for web yet
+          renderMessageImage={(props) => {
+            return <RenderImage {...props} openImageOverlay={this.openImageOverlay} />
+          }}
+          scrollToBottom={true}
+          showUserAvatar={true}
+          onPressAvatar={this.promptUsername}
+          onLongPressAvatar={(context) => {
+            return this.handleReply(context)
+          }}
+          renderChatFooter={() => {
+            return <RenderChatFooter removeInputFiles={this.removeInputFiles}
+                                     files={this.state.files}
+                                     loading={this.state.loading} />
+          }}
+          renderBubble={(props) => {
+            return <RenderBubble {...props} keys={{ ...this.SB.channel.keys, ...this.SB.identity }}
+                                 SB={this.SB} />
+          }}
+          renderSend={RenderSend}
+          renderComposer={(props) => {
+            return <RenderComposer {...props} filesAttached={this.state.files.length > 0} />
+          }}
+          onLongPress={() => false}
+          renderTime={RenderTime}
+
+        />
+      </View>
+
+    )
+  }
 }
 
 export default ChatRoom;
