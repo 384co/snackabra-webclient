@@ -3,11 +3,11 @@ import ResponsiveDialog from "../ResponsiveDialog";
 import { Grid, TextField, Typography } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
 import { useContext, useState,useEffect } from "react";
-import RoomContext from "../../contexts/RoomContext";
+import SnackabraContext from "../../contexts/SnackabraContext";
 import { Trans } from "@lingui/macro";
 
 export default function MotdDialog(props) {
-  const Room = useContext(RoomContext)
+  const sbContext = useContext(SnackabraContext)
 
   const [open, setOpen] = useState(props.open);
   const [text, setText] = useState('');
@@ -21,7 +21,7 @@ export default function MotdDialog(props) {
   }
 
   const sendWhisper = () => {
-    Room.sendMessage(text, true);
+    sbContext.sendMessage(text, true);
     setText('')
     setOpen(false)
   }
@@ -36,11 +36,11 @@ export default function MotdDialog(props) {
             alignItems="flex-start">
         <Grid item xs={12}>
           <Typography variant={'body1'}>
-            {Room.motd !== '' &&
-              <Trans id='motd text'>Message of the day: {Room.motd}</Trans>}
+            {sbContext.motd !== '' &&
+              <Trans id='motd text'>Message of the day: {sbContext.motd}</Trans>}
           </Typography>
         </Grid>
-        {!Room.room_owner ?
+        {!sbContext.room_owner ?
           <>
             <TextField
               id="whisper-text"

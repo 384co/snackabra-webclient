@@ -17,11 +17,12 @@ import GiftedMessage from "../../utils/chat/Messages/GiftedMessage";
 import RenderSend from "./RenderSend";
 import RenderComposer from "./RenderComposer";
 import { SBMessage } from "snackabra"
+import { observer } from "mobx-react"
+import { useStateValues } from '../../stores/GlobalProvider';
 
-
+@observer
 class ChatRoom extends React.Component {
 
-  SB = document.Snackabra;
   state = {
     openPreview: false,
     openChangeName: false,
@@ -47,7 +48,15 @@ class ChatRoom extends React.Component {
 
     window.addEventListener('resize', handleResize)
     handleResize();
-
+    this.props.sbContext.joinRoom(this.props.roomId, async (message) => {
+      console.log(message)
+      const msg = JSON.parse(message)
+      if (msg) {
+        msg.user = msg.sender_username
+        this.setState({ messages: [...this.state.messages, msg] })
+      }  
+    })
+    /*
     if (localStorage.getItem(this.props.roomId) === null && this.props.roomId !== '') {
       this.setState({ openFirstVisit: true })
     } else {
@@ -57,8 +66,8 @@ class ChatRoom extends React.Component {
         this.SB.channel.socket.onJoin = async (message) => {
           console.log('here', message)
         }
-        this.props.roomContext.goToRoom(this.props.roomId, this.SB.channel.admin)
-        this.props.roomContext.loadRoom(this.SB.channel.metaData, this.sendSystemInfo, this.sendSystemMessage)
+        this.props.sbContext.goToRoom(this.props.roomId, this.SB.channel.admin)
+        this.props.sbContext.loadRoom(this.SB.channel.metaData, this.sendSystemInfo, this.sendSystemMessage)
         this.setState({ user: this.getUser() })
         this.SB.channel.api.getOldMessages(0).then(async (messages) => {
           const _oldMessages = [];
@@ -80,6 +89,7 @@ class ChatRoom extends React.Component {
         }
       })
     }
+    */
   }
 
 
@@ -120,7 +130,7 @@ class ChatRoom extends React.Component {
   // START NEW FUNCTIONS ***************************************************
   getUser = (message = null) => {
     let username, user_id;
-    const contacts = this.props.roomContext.contacts;
+    const contacts = this.props.sbContext.contacts;
     if (message) {
       if (message.verificationToken) {
         return
@@ -188,8 +198,8 @@ class ChatRoom extends React.Component {
 
   handleReply = (user) => {
     try {
-      if (this.roomContext.roomOwner) {
-        this.roomContext.handleReply(user)
+      if (this.sbContext.roomOwner) {
+        this.sbContext.handleReply(user)
       } else {
         this.notify('Whisper is only for room owners.', 'info')
       }
@@ -300,7 +310,7 @@ class ChatRoom extends React.Component {
         height: this.state.height - 48
       }}>
         <ImageOverlay open={this.state.openPreview} img={this.state.img} imgLoaded={this.state.imgLoaded}
-                      onClose={this.imageOverlayClosed} />
+          onClose={this.imageOverlayClosed} />
         <ChangeNameDialog open={this.state.openChangeName} />
         <MotdDialog open={this.state.openMotd} roomName={this.props.roomName} />
         <AttachMenu open={attachMenu} handleClose={this.handleClose} />
@@ -314,8 +324,8 @@ class ChatRoom extends React.Component {
           user={this.state.user}
           inverted={false}
           alwaysShowSend={true}
-          loadEarlier={this.props.roomContext.moreMessages}
-          isLoadingEarlier={this.props.roomContext.loadingMore}
+          loadEarlier={this.props.sbContext.moreMessages}
+          isLoadingEarlier={this.props.sbContext.loadingMore}
           onLoadEarlier={this.getOldMessages}
           renderActions={(props) => {
             return <RenderAttachmentIcon
@@ -337,12 +347,12 @@ class ChatRoom extends React.Component {
           }}
           renderChatFooter={() => {
             return <RenderChatFooter removeInputFiles={this.removeInputFiles}
-                                     files={this.state.files}
-                                     loading={this.state.loading} />
+              files={this.state.files}
+              loading={this.state.loading} />
           }}
           renderBubble={(props) => {
             return <RenderBubble {...props} keys={{ ...this.SB.channel.keys, ...this.SB.identity }}
-                                 SB={this.SB} />
+              SB={this.SB} />
           }}
           renderSend={RenderSend}
           renderComposer={(props) => {

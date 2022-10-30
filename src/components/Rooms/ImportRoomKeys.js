@@ -4,14 +4,14 @@ import { Grid, TextField, Typography } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
 import { useState, useContext } from "react"
 import NotificationContext from "../../contexts/NotificationContext";
-import RoomContext from "../../contexts/RoomContext";
+import SnackabraContext from "../../contexts/SnackabraContext";
 import * as utils from "../../utils/utils";
 
 
 
 const ImportRoomKeys = () => {
   const Notifications = useContext(NotificationContext)
-  const Room = useContext(RoomContext)
+  const sbContext = useContext(SnackabraContext)
   const [key, setKey] = useState('No file selected');
 
   let fileReader;
@@ -49,7 +49,7 @@ const ImportRoomKeys = () => {
   const importKeys = () =>{
     try {
       utils.importFile(key)
-      Room.processLocalStorage()
+      sbContext.processLocalStorage()
       Notifications.setMessage('Key file imported!');
       Notifications.setSeverity('success');
       Notifications.setOpen(true)

@@ -2,14 +2,13 @@ import * as React from "react"
 import ResponsiveDialog from "../ResponsiveDialog";
 import { Grid, TextField, Typography } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
-import { useContext, useState } from "react";
-import ActiveChatContext from "../../contexts/ActiveChatContext";
+import { useState } from "react";
 import { Trans } from "@lingui/macro";
+import {observer} from "mobx-react"
+import { useStateValues } from '../../stores/GlobalProvider';
 
-const page = window.location;
-
-export default function FirstVisitDialog(props) {
-  const activeChatContext = useContext(ActiveChatContext)
+const FirstVisitDialog = observer((props) => {
+  const sbContext = useStateValues().sbStore
 
   const [open, setOpen] = useState(props.open);
   const [text, setText] = useState('');
@@ -27,8 +26,10 @@ export default function FirstVisitDialog(props) {
 
   const submit = () => {
     setSubmitClick(true)
-    localStorage.setItem(props.roomId + '_username', text)
-    activeChatContext.selectRoom(props.roomId);
+    sbContext.activeroom = props.roomId;
+    sbContext.username = text;
+   // localStorage.setItem(props.roomId + '_username', text)
+    //activeChatContext.selectRoom(props.roomId);
     props.onClose();
     setTimeout(()=> {
       //page.reload();
@@ -74,22 +75,6 @@ export default function FirstVisitDialog(props) {
     </ResponsiveDialog>
   )
 
-}
+})
 
-/*
-          <JwModal id='lastvisit-empty'>
-            <br />
-            <br />
-            <input type="text" id='public-username-input' placeholder="Enter Username Here" onFocus={(event) => event.target.select()} autoFocus />
-            <br />
-            <button className='admin-button green-btn' id='acknowledge-localstorage-btn' onClick={(e) => {
-              localStorage.setItem(this.roomId + '_username', document.getElementById('public-username-input') && document.getElementById('public-username-input').value)
-              JwModal.close('lastvisit-empty')(e);
-              this.selectRoom(this.roomId);
-            }}><Trans id='ok button text'>Ok</Trans></button>
-            <button className='admin-button green-btn' id='cancel-localstorage-btn' onClick={(e) => {
-              window.location.href = '{ process.env.PUBLIC_URL }'
-            }}><Trans id='cancel button text'>Cancel</Trans></button>
-          </JwModal>
-
- */
+export default FirstVisitDialog

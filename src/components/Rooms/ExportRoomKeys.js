@@ -5,14 +5,14 @@ import DownloadIcon from '@mui/icons-material/Download';
 import { StyledButton } from "../../styles/Buttons";
 import { useState, useContext } from "react"
 import * as utils from '../../utils/utils';
-import RoomContext from "../../contexts/RoomContext";
+import SnackabraContext from "../../contexts/SnackabraContext";
 
 const ExportRoomKeys = () => {
-  const roomContext = useContext(RoomContext)
+  const sbContext = useContext(SnackabraContext)
   const [fileName, setFilename] = useState('SnackabraData');
 
   const getData = (pem) => {
-    return { roomData: roomContext.rooms, contacts: roomContext.contacts, roomMetadata: roomContext.roomMetadata, pem: pem }
+    return { roomData: sbContext.rooms, contacts: sbContext.contacts, roomMetadata: sbContext.roomMetadata, pem: pem }
   }
 
   const exportPemKeys = async () => {
@@ -54,7 +54,7 @@ const ExportRoomKeys = () => {
           justifyContent="flex-start"
           alignItems="flex-start">
 
-      {Object.keys(roomContext.roomMetadata).length > 0 || Object.keys(roomContext.contacts).length > 0 || Object.keys(roomContext.rooms).length > 0
+      {Object.keys(sbContext.roomMetadata).length > 0 || Object.keys(sbContext.contacts).length > 0 || Object.keys(sbContext.rooms).length > 0
         ? <Grid spacing={2}
                 container
                 direction="row"

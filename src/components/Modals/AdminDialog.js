@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import ResponsiveDialog from "../ResponsiveDialog";
 import { Grid, TextField, Typography } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
-import RoomContext from "../../contexts/RoomContext";
+import SnackabraContext from "../../contexts/SnackabraContext";
 import ConfirmLockDialog from "./ConfirmLockDialog";
 import NotificationContext from "../../contexts/NotificationContext";
 
@@ -14,10 +14,10 @@ function isNumeric(v) {
 }
 
 const AdminDialog = (props) => {
-  const Room = React.useContext(RoomContext);
+  const sbContext = React.useContext(SnackabraContext);
   const notify = React.useContext(NotificationContext);
-  const [roomCapacity, setRoomCapacity] = useState(Room.roomCapacity);
-  const [motd, setMOTD] = useState(Room.motd);
+  const [roomCapacity, setRoomCapacity] = useState(sbContext.roomCapacity);
+  const [motd, setMOTD] = useState(sbContext.motd);
   const [open, setOpen] = useState(props.open);
   const [openLockDialog, setOpenLockDialog] = useState(false);
 
@@ -26,15 +26,15 @@ const AdminDialog = (props) => {
   }, [props.open])
 
   React.useEffect(() => {
-    setRoomCapacity(Room.roomCapacity);
-  }, [Room.roomCapacity]);
+    setRoomCapacity(sbContext.roomCapacity);
+  }, [sbContext.roomCapacity]);
 
   React.useEffect(() => {
-    setMOTD(Room.motd);
-  }, [Room.motd])
+    setMOTD(sbContext.motd);
+  }, [sbContext.motd])
 
   const lockRoom = () => {
-    Room.lockRoom();
+    sbContext.lockRoom();
     props.onClose();
   }
 
@@ -48,7 +48,7 @@ const AdminDialog = (props) => {
 
   const setCapacity = () => {
     if (isNumeric(roomCapacity)) {
-      Room.updateRoomCapacity(Number(roomCapacity))
+      sbContext.updateRoomCapacity(Number(roomCapacity))
       props.onClose();
     }else{
       notify.setMessage('Invalid room capacity');
@@ -85,7 +85,7 @@ const AdminDialog = (props) => {
             sx={{ pb: 1, pt: 1 }}
           />
           <StyledButton variant={"contained"} onClick={() => {
-            Room.setMOTD(motd)
+            sbContext.setMOTD(motd)
             props.onClose()
           }}>
             <Typography variant={"button"}>Save MOTD</Typography>

@@ -4,12 +4,13 @@ import { Grid, TextField } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
 import { useState, useContext } from "react"
 import NotificationContext from "../../contexts/NotificationContext";
-import RoomContext from "../../contexts/RoomContext";
+import {observer} from "mobx-react"
+import { useStateValues } from '../../stores/GlobalProvider';
 
 
-const CreateRoom = (props) => {
+const CreateRoom = observer((props) => {
   const Notifications = useContext(NotificationContext)
-  const Room = useContext(RoomContext)
+  const sbContext = useStateValues().sbStore
   const [secret, setSecret] = useState('');
 
   const success = () => {
@@ -27,7 +28,8 @@ const CreateRoom = (props) => {
 
   const createRoom = async () => {
     try {
-      await Room.createNewRoom(secret)
+
+      await sbContext.createRoom(secret)
       if (typeof props?.onClose === 'function') {
         props.onClose()
       }
@@ -62,6 +64,6 @@ const CreateRoom = (props) => {
 
     </Grid>
   )
-}
+})
 
 export default CreateRoom

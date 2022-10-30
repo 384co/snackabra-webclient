@@ -25,16 +25,17 @@ import { downloadRoomData } from "../utils/utils";
 import Fab from '@mui/material/Fab';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import NotificationContext from "../contexts/NotificationContext";
-import RoomContext from "../contexts/RoomContext";
-import ActiveChatContext from "../contexts/ActiveChatContext";
+import {observer} from "mobx-react"
+import sbContext from "../stores/Snackabra.Store"
+
 
 const drawerWidth = 240;
 
 const page = window.location;
 
-function ResponsiveDrawer(props) {
-  const activeChatContext = useContext(ActiveChatContext)
-  const roomContext = useContext(RoomContext)
+
+const ResponsiveDrawer = observer((props) => {
+
   const Notifications = useContext(NotificationContext)
   let { room_id } = useParams();
   const { window } = props;
@@ -42,22 +43,20 @@ function ResponsiveDrawer(props) {
   const [openImportDialog, setOpenImportDialog] = React.useState(false);
   const [openCreateDialog, setOpenCreateDialog] = React.useState(false);
   const [openAdminDialog, setOpenAdminDialog] = React.useState(false);
-  const [rooms, setRooms] = React.useState(roomContext.rooms);
+  const [rooms, setRooms] = React.useState(sbContext.rooms);
   const [editingRoomId, setEditingRoomId] = React.useState(false);
   const [updatedName, setUpdatedName] = React.useState(false);
 
   React.useEffect(() => {
-    setRooms(roomContext.rooms)
-    //roomContext.updateRoomNames(roomContext.rooms)
-  }, [roomContext.rooms])
+    setRooms(sbContext.rooms)
+  }, [sbContext.rooms])
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
   const getRoomData = (roomId) => {
-    console.log(roomContext.roomMetadata)
-    downloadRoomData(roomId, roomContext.roomMetadata)
+    downloadRoomData(roomId, sbContext.roomMetadata)
   }
 
   const editRoom = (roomId) => {
@@ -70,7 +69,7 @@ function ResponsiveDrawer(props) {
       if (rooms.hasOwnProperty(editingRoomId)) {
         const _roomMetadata = localStorage.hasOwnProperty('rooms') ? JSON.parse(localStorage.getItem('rooms')) : {}
         _roomMetadata[editingRoomId] = { name: updatedName };
-        roomContext.updateRoomNames(_roomMetadata)
+        sbContext.updateRoomNames(_roomMetadata)
         setEditingRoomId(false)
       }
     }
@@ -90,7 +89,7 @@ function ResponsiveDrawer(props) {
             setOpenCreateDialog(true)
           }}>
             <ListItemIcon>
-              <AddCommentIcon />
+              <AddCommentIcon />Context
             </ListItemIcon>
             <ListItemText primary={'Create a room'} />
           </ListItemButton>
@@ -105,7 +104,7 @@ function ResponsiveDrawer(props) {
             <ListItemText primary={'Import a room'} />
           </ListItemButton>
         </ListItem>
-        <Hidden xsUp={!roomContext.showAdminTab}>
+        <Hidden xsUp={!sbContext.roomAdmin}>
           <ListItem disablePadding>
             <ListItemButton onClick={() => {
               setOpenAdminDialog(true)
@@ -118,10 +117,10 @@ function ResponsiveDrawer(props) {
           </ListItem>
         </Hidden>
         <Divider />
-        {Object.keys(roomContext.roomMetadata).map((room, index) => {
+        {Object.keys(sbContext.rooms).map((room, index) => {
           const bgColor = room === room_id ? '#ff5c42' : 'inherit';
           const color = room === room_id ? '#fff' : 'inherit';
-          const roomName = roomContext.roomMetadata[room]?.name || `Room ${index + 1}`
+          const roomName = sbContext.rooms[room]?.name || `Room ${index + 1}`
           return (
             <ListItem key={index} disablePadding sx={{ backgroundColor: bgColor, color: color }}>
               <ListItemButton>
@@ -176,9 +175,8 @@ function ResponsiveDrawer(props) {
         setOpenImportDialog(false)
       }} />
       <CreateRoomDialog open={openCreateDialog} onClose={() => {
-        setRooms(roomContext.getRooms())
+        setRooms(sbContext.getRooms())
         setOpenCreateDialog(false)
-        page.reload();
       }} />
       <AdminDialog open={openAdminDialog} onClose={() => {
         setOpenAdminDialog(false)
@@ -225,19 +223,18 @@ function ResponsiveDrawer(props) {
         component="main"
         sx={{ flexGrow: 1, p: 0, width: { xs: '100%', sm: `calc(100% - ${drawerWidth}px)` } }}
       >
-        {!room_id && (<Grid>
+        {(!room_id || !sbContext.activeroom) && (<Grid>
           <Toolbar />
           <Typography variant={'h6'}>Select a room or create a new one to get started.</Typography>
         </Grid>)
         }
-        {room_id &&
-          (<ChatRoom roomId={room_id} roomContext={roomContext} Notifications={Notifications}
-                     activeChatContext={activeChatContext} />)
+        {(room_id || sbContext.activeroom) &&
+          (<ChatRoom roomId={room_id ?  room_id : sbContext.activeroom} sbContext={sbContext} Notifications={Notifications} />)
         }
       </Box>
     </Box>
   );
-}
+})
 
 
 export default ResponsiveDrawer;

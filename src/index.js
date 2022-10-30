@@ -5,21 +5,18 @@ import './index.css';
 import App from './App';
 import { createRoot } from 'react-dom/client';
 import IndexedKV from "./utils/IndexedKV";
-const SB = require('snackabra')
-const sb_config = {
-  channel_server: process.env.REACT_APP_ROOM_SERVER,
-  channel_ws: process.env.REACT_APP_ROOM_SERVER_WS,
-  storage_server: process.env.REACT_APP_STORAGE_SERVER
-};
+import sbContext from  './stores/Snackabra.Store'
+
 const container = document.getElementById('root');
 const root = createRoot(container);
 
-Object.defineProperty(document, 'Snackabra', {
-  value: new SB.Snackabra(sb_config)
-});
 
-document.addEventListener("localKvReady", function(e) {
-  root.render(<App />);
+
+document.addEventListener("localKvReady", async (e) => {
+  sbContext.init().then(()=>{
+    root.render(<App />);
+  })
+ 
 });
 
 

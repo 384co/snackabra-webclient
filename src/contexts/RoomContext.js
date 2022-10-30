@@ -26,7 +26,11 @@ export const RoomProvider = ({ children }) => {
   const [activeRooms, setActiveRooms] = React.useState([]);
   const [adminError, setAdminError] = React.useState(false);
   const [roomOwner, setRoomOwner] = React.useState(false);
+  const [keys, setKeys] = React.useState({});
+  const [changeUsername, setChangeUsername] = React.useState('');
+  const [joinRequests, setJoinRequests] = React.useState({});
   const [roomAdmin, setRoomAdmin] = React.useState(false);
+  const [messages, setMessages] = React.useState({});
   const [showAdminTab, setShowAdminTab] = React.useState(false);
   const [contacts, setContacts] = React.useState(localStorage.getItem('contacts') ? JSON.parse(localStorage.getItem('contacts')) : {});
 
@@ -230,7 +234,6 @@ export const RoomProvider = ({ children }) => {
     try {
       let user = changeUsername
       const user_pubKey = JSON.parse(user._id);
-      let contacts = roomContext.contacts;
       let _messages = Object.assign(messages);
       _messages.forEach(message => {
         if (message.user._id === user._id) {
@@ -240,7 +243,7 @@ export const RoomProvider = ({ children }) => {
       contacts[user_pubKey.x + ' ' + user_pubKey.y] = newUsername;
       setChangeUsername({ _id: '', name: '' })
       setMessages(_messages)
-      roomContext.updateContacts(contacts);
+      updateContacts(contacts);
     } catch (e) {
       console.error(e);
       return { error: e };
@@ -342,7 +345,6 @@ export const RoomProvider = ({ children }) => {
   }
 
   const getWhisperToText = () => {
-    let contacts = roomContext.contacts;
     return contacts[JSON.parse(replyTo._id).x + ' ' + JSON.parse(replyTo._id).y]
   }
 

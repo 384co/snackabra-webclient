@@ -3,12 +3,12 @@ import { useLocation } from "react-router-dom";
 import { AppBar, Avatar, Box, Button, Grid, Hidden, IconButton, } from "@mui/material";
 import { AppBarTab, AppBarTabLink, AppBarTabs } from "../styles/AppBarTabs";
 import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded';
-import RoomContext from "../contexts/RoomContext";
+import SnackabraContext from "../contexts/SnackabraContext";
 import WhisperUserDialog from "./Modals/WhisperUserDialog";
 
 export default function NavAppBar() {
 
-  const roomContext = React.useContext(RoomContext)
+  const sbContext = React.useContext(SnackabraContext)
   const [value, setValue] = React.useState(0);
   const [openWhisper, setOpenWhisper] = React.useState(false);
   const location = useLocation();
@@ -72,7 +72,7 @@ export default function NavAppBar() {
             </AppBarTabs>
           </Grid>
           <Grid>
-            <Hidden xsUp={roomContext.showAdminTab}>
+            <Hidden xsUp={sbContext.showAdminTab}>
               <Avatar onClick={()=>{setOpenWhisper(true)}} sx={{ width: 48, height: 48, bgcolor: 'transparent' }}>
                 <IconButton color="inherit" component="span">
                   <AccountCircleRoundedIcon />
