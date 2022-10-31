@@ -89,7 +89,7 @@ const ResponsiveDrawer = observer((props) => {
             setOpenCreateDialog(true)
           }}>
             <ListItemIcon>
-              <AddCommentIcon />Context
+              <AddCommentIcon />
             </ListItemIcon>
             <ListItemText primary={'Create a room'} />
           </ListItemButton>

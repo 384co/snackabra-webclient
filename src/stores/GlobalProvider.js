@@ -37,5 +37,5 @@ const GlobalProvider = ({ children }) => {
 };
 
 const useStateValues = () => useContext(GlobalContext);
-const state = useStateValues();
-export { GlobalProvider, state };
+
+export { GlobalProvider, useStateValues };

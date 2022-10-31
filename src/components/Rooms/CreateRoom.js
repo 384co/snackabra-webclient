@@ -5,12 +5,11 @@ import { StyledButton } from "../../styles/Buttons";
 import { useState, useContext } from "react"
 import NotificationContext from "../../contexts/NotificationContext";
 import {observer} from "mobx-react"
-import { useStateValues } from '../../stores/GlobalProvider';
+import sbContext from "../../stores/Snackabra.Store"
 
 
 const CreateRoom = observer((props) => {
   const Notifications = useContext(NotificationContext)
-  const sbContext = useStateValues().sbStore
   const [secret, setSecret] = useState('');
 
   const success = () => {

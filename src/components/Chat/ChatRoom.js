@@ -18,7 +18,6 @@ import RenderSend from "./RenderSend";
 import RenderComposer from "./RenderComposer";
 import { SBMessage } from "snackabra"
 import { observer } from "mobx-react"
-import { useStateValues } from '../../stores/GlobalProvider';
 
 @observer
 class ChatRoom extends React.Component {
@@ -39,11 +38,12 @@ class ChatRoom extends React.Component {
     user: {},
     height: 0,
   }
-
+  sbContext = this.props.sbContext
   componentDidMount() {
-
+ 
     const handleResize = () => {
       this.setState({ height: window.innerHeight })
+      
     }
 
     window.addEventListener('resize', handleResize)
@@ -52,9 +52,13 @@ class ChatRoom extends React.Component {
       console.log(message)
       const msg = JSON.parse(message)
       if (msg) {
+        console.log(this.sbContext.userKey())
         msg.user = msg.sender_username
+        if(!msg.hasOwnProperty('_id')){
+          msg._id = this.state.messages.length
+        }
         this.setState({ messages: [...this.state.messages, msg] })
-      }  
+      } 
     })
     /*
     if (localStorage.getItem(this.props.roomId) === null && this.props.roomId !== '') {

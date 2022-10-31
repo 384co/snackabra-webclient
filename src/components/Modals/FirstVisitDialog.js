@@ -5,11 +5,9 @@ import { StyledButton } from "../../styles/Buttons";
 import { useState } from "react";
 import { Trans } from "@lingui/macro";
 import {observer} from "mobx-react"
-import { useStateValues } from '../../stores/GlobalProvider';
+import sbContext from "../../stores/Snackabra.Store"
 
 const FirstVisitDialog = observer((props) => {
-  const sbContext = useStateValues().sbStore
-
   const [open, setOpen] = useState(props.open);
   const [text, setText] = useState('');
   const [submitClick, setSubmitClick] = useState(false);
