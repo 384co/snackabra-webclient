@@ -40,7 +40,7 @@ class ChatRoom extends React.Component {
   }
   sbContext = this.props.sbContext
   componentDidMount() {
- 
+    
     const handleResize = () => {
       this.setState({ height: window.innerHeight })
       
@@ -49,10 +49,10 @@ class ChatRoom extends React.Component {
     window.addEventListener('resize', handleResize)
     handleResize();
     this.props.sbContext.joinRoom(this.props.roomId, async (message) => {
-      console.log(message)
+      
       const msg = JSON.parse(message)
       if (msg) {
-        console.log(this.sbContext.userKey())
+        console.log(this.sbContext.key)
         msg.user = msg.sender_username
         if(!msg.hasOwnProperty('_id')){
           msg._id = this.state.messages.length
@@ -355,7 +355,7 @@ class ChatRoom extends React.Component {
               loading={this.state.loading} />
           }}
           renderBubble={(props) => {
-            return <RenderBubble {...props} keys={{ ...this.SB.channel.keys, ...this.SB.identity }}
+            return <RenderBubble {...props} keys={{ ...this.props.sbContext.keys, ...this.props.sbContext.userKey }}
               SB={this.SB} />
           }}
           renderSend={RenderSend}

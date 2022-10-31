@@ -1,25 +1,9 @@
-import { makeObservable, observable, action, computed, onBecomeObserved, onBecomeUnobserved } from "mobx"
-import {
-  ab2str,
-  str2ab,
-  base64ToArrayBuffer,
-  arrayBufferToBase64,
-  getRandomValues,
-  // jsonParseWrapper,
-  // Channel,
-  // Identity,
-  MessageBus,
-  // SBFile,
-  SBMessage,
-  Snackabra,
-  ChannelMessage,
-  SBObjectHandle,
-  SBChannelHandle,
-  SBServer,
-  compareBuffers
-} from "snackabra";
+import { makeObservable, observable, action, computed, onBecomeObserved, onBecomeUnobserved, configure } from "mobx"
+const SB = require('snackabra')
 
-
+configure({
+  useProxies: "never"
+})
 
 class SnackabraStore {
 
@@ -28,6 +12,7 @@ class SnackabraStore {
     channel_ws: process.env.REACT_APP_ROOM_SERVER_WS,
     storage_server: process.env.REACT_APP_STORAGE_SERVER
   }
+  socket;
   rooms = {};
   motd = "";
   locked = false;
@@ -51,12 +36,14 @@ class SnackabraStore {
   activeRoom;
   joinRequests = {};
   contacts = {};
-  SB = new Snackabra(this.sbConfig)
+  SB = new SB.Snackabra(this.sbConfig)
 
   constructor() {
+
     makeObservable(this, {
       createRoom: action,
       username: computed,
+      key: computed,
       loadingMore: observable,
       sbConfig: observable,
       roomMetadata: observable,
@@ -78,8 +65,10 @@ class SnackabraStore {
       ownerKey: observable,
       joinRequests: observable,
       roomAdmin: observable,
-      contacts: observable
+      contacts: observable,
+      socket: observable
     })
+
     onBecomeObserved(this, "roomMetadata", this.resume)
     onBecomeUnobserved(this, "roomMetadata", this.suspend)
   }
@@ -100,8 +89,6 @@ class SnackabraStore {
     for (let x in sb_data) {
       this[x] = sb_data[x]
     }
-    if (this.rooms['c0_yPmmwLw2fuCHpG2j80rkNeJb_u52tJHXBKbO3qYgQkUU-pL9F_P5RnOlrMvyf'])
-      console.log(this.rooms['c0_yPmmwLw2fuCHpG2j80rkNeJb_u52tJHXBKbO3qYgQkUU-pL9F_P5RnOlrMvyf'].name)
   }
 
   save = () => {
@@ -125,6 +112,14 @@ class SnackabraStore {
     this.userName = userName;
   }
 
+  get key() {
+    return this.userKey
+  }
+
+  set key(key) {
+    this.userKey = key
+  }
+
   receiveMessage = (m) => {
     console.log(`got message: ${m}`)
   }
@@ -142,9 +137,10 @@ class SnackabraStore {
           handle.channelId // since we're owner this is optional
 
         ).then((c) => c.ready).then((c) => {
+          this.socket = c;
           this.activeroom = handle.channelId
           this.ownerKey = handle.key;
-          this.userKey = handle.key;
+          this.key = handle.key;
           this.rooms[handle.channelId] = {
             name: 'Room ' + Math.floor(Object.keys(this.rooms).length + 1),
             id: handle.channelId,
@@ -187,6 +183,7 @@ class SnackabraStore {
   */
 
   joinRoom = async (roomId, messageCallback) => {
+    this.SB = new SB.Snackabra(this.sbConfig);
     this.activeroom = roomId
     this.userKey = this.rooms[roomId].key;
     this.SB.connect(
@@ -201,9 +198,11 @@ class SnackabraStore {
       this.rooms[roomId].key, // if we omit then we're connecting anonymously
       roomId, // optional, will recreate if missing
     ).then((c) => c.ready).then((c) => {
+      console.log(c)
+      this.socket = c;
       c.userName = this.rooms[roomId].userName ? this.rooms[roomId].userName : 'Unset'
 
-      let sbm = new SBMessage(c, "Hello from test04d!")
+      let sbm = new SB.SBMessage(c, "Hello from test04d!")
       console.log("++++test04d++++ will try to send this message:")
       console.log(sbm)
       sbm.send().then((c) => {
