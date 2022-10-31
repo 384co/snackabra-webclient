@@ -37,5 +37,5 @@ const GlobalProvider = ({ children }) => {
 };
 
 const useStateValues = () => useContext(GlobalContext);
-
 export { GlobalProvider, useStateValues };
+

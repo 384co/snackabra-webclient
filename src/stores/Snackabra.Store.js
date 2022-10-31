@@ -100,7 +100,8 @@ class SnackabraStore {
     for (let x in sb_data) {
       this[x] = sb_data[x]
     }
-    console.log(this.rooms['c0_yPmmwLw2fuCHpG2j80rkNeJb_u52tJHXBKbO3qYgQkUU-pL9F_P5RnOlrMvyf'].name)
+    if (this.rooms['c0_yPmmwLw2fuCHpG2j80rkNeJb_u52tJHXBKbO3qYgQkUU-pL9F_P5RnOlrMvyf'])
+      console.log(this.rooms['c0_yPmmwLw2fuCHpG2j80rkNeJb_u52tJHXBKbO3qYgQkUU-pL9F_P5RnOlrMvyf'].name)
   }
 
   save = () => {
