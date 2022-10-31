@@ -38,4 +38,5 @@ const GlobalProvider = ({ children }) => {
 
 const useStateValues = () => useContext(GlobalContext);
 const state = useStateValues();
+// other files are expecting 'useStateValues':
 export { GlobalProvider, state };
