@@ -110,7 +110,7 @@ class SnackabraStore {
   }
 
   set username(userName) {
-    this.rooms[this.activeRoom].userName = userName;
+    if (this.rooms[this.activeRoom]) this.rooms[this.activeRoom].userName = userName;
     this.userName = userName;
   }
 
@@ -140,41 +140,37 @@ class SnackabraStore {
     })
   }
 
-  getOldMessages = (length) => {
-    const messageIdRegex = /([A-Za-z0-9+/_\-=]{64})([01]{42})/
-    const sbCrypto = new SB.SBCrypto()
+  getOldMessages = (length) => this.socket.api.getOldMessages(length);
 
-    return new Promise(async (res) => {
-      const messages = await this.socket.api.getOldMessages(length)
-      let r_messages = [];
-      Object.keys(messages).forEach(async (value, index) => {
-        const z = messageIdRegex.exec(value)
-        if (z && messages[value].hasOwnProperty('encrypted_contents')) {
-          let m = {
-            type: 'encryptedChannelMessage',
-            channelID: z[1],
-            timestampPrefix: z[2],
-            encrypted_contents: {
-              content: messages[value].encrypted_contents.content,
-              iv: new Uint8Array(Array.from(Object.values(messages[value].encrypted_contents.iv)))
-            }
-          }
-          const unwrapped = await sbCrypto.unwrap(this.socket.keys.encryptionKey, m.encrypted_contents, 'string');
-          m = { ...m, ...JSON.parse(unwrapped) };
-          m.user = { name: m.sender_username ? m.sender_username : 'Unknown', _id: m.sender_pubKey }
-          if (!m.hasOwnProperty('_id')) {
-            m.text = m.contents
-            m._id = m.channelID + m.timestampPrefix
-          }
-          r_messages.push(m)
-        }
-        if (index === Object.keys(messages).length - 1) {
-          res(r_messages)
-        }
-      })
-    })
-
-  }
+  // const messageIdRegex = /([A-Za-z0-9+/_\-=]{64})([01]{42})/
+  // const sbCrypto = new SB.SBCrypto()
+  // const messages = await this.socket.api.getOldMessages(length)
+  // let r_messages = [];
+  // Object.keys(messages).forEach(async (value, index) => {
+  //   const z = messageIdRegex.exec(value)
+  //   if (z && messages[value].hasOwnProperty('encrypted_contents')) {
+  //     let m = {
+  //       type: 'encryptedChannelMessage',
+  //       channelID: z[1],
+  //       timestampPrefix: z[2],
+  //       encrypted_contents: {
+  //         content: messages[value].encrypted_contents.content,
+  //         iv: new Uint8Array(Array.from(Object.values(messages[value].encrypted_contents.iv)))
+  //       }
+  //     }
+  //     const unwrapped = await sbCrypto.unwrap(this.socket.keys.encryptionKey, m.encrypted_contents, 'string');
+  //     m = { ...m, ...JSON.parse(unwrapped) };
+  //     m.user = { name: m.sender_username ? m.sender_username : 'Unknown', _id: m.sender_pubKey }
+  //     if (!m.hasOwnProperty('_id')) {
+  //       m.text = m.contents
+  //       m._id = m.channelID + m.timestampPrefix
+  //     }
+  //     r_messages.push(m)
+  //   }
+  //   if (index === Object.keys(messages).length - 1) {
+  //     res(r_messages)
+  //   }
+  // })
 
   createRoom = (secret) => {
     return new Promise((resolve, reject) => {
