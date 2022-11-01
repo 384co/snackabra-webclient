@@ -140,7 +140,15 @@ class SnackabraStore {
     })
   }
 
-  getOldMessages = (length) => this.socket.api.getOldMessages(length);
+  getOldMessages = (length) => {
+    return new Promise((resolve) => {
+      this.socket.api.getOldMessages(length).then((r_messages) => {
+        console.log("getOldMessages() got:")
+        console.log(r_messages);
+        resolve(r_messages);
+      })
+    })
+  }
 
   // const messageIdRegex = /([A-Za-z0-9+/_\-=]{64})([01]{42})/
   // const sbCrypto = new SB.SBCrypto()
