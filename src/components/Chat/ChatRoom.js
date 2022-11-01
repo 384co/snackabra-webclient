@@ -13,11 +13,10 @@ import RenderTime from "./RenderTime";
 import { View } from "react-native";
 import AttachMenu from "./AttachMenu";
 import FirstVisitDialog from "../Modals/FirstVisitDialog";
-import GiftedMessage from "../../utils/chat/Messages/GiftedMessage";
 import RenderSend from "./RenderSend";
 import RenderComposer from "./RenderComposer";
-import { SBMessage } from "snackabra"
 import { observer } from "mobx-react"
+const SB = require('snackabra')
 
 @observer
 class ChatRoom extends React.Component {
@@ -39,31 +38,37 @@ class ChatRoom extends React.Component {
     height: 0,
   }
   sbContext = this.props.sbContext
+
   componentDidMount() {
-    
+
     const handleResize = () => {
       this.setState({ height: window.innerHeight })
-      
+
     }
 
     window.addEventListener('resize', handleResize)
     handleResize();
-    this.props.sbContext.joinRoom(this.props.roomId, async (message) => {
-      
-      const msg = JSON.parse(message)
-      if (msg) {
-        console.log(this.sbContext.key)
-        msg.user = msg.sender_username
-        if(!msg.hasOwnProperty('_id')){
-          msg._id = this.state.messages.length
-        }
-        this.setState({ messages: [...this.state.messages, msg] })
-      } 
-    })
-    /*
-    if (localStorage.getItem(this.props.roomId) === null && this.props.roomId !== '') {
+
+
+    if (!this.sbContext.rooms[this.props.roomId]?.key) {
       this.setState({ openFirstVisit: true })
     } else {
+      this.props.sbContext.joinRoom(this.props.roomId, (msg) => {
+
+        if (msg) {
+          msg.user = { name: msg.sender_username, _id: this.sbContext.key }
+          if (!msg.hasOwnProperty('_id')) {
+            msg.text = msg.contents
+            msg._id = msg.channelID + msg.timestampPrefix
+          }
+          this.setState({ messages: [...this.state.messages, msg] })
+        }
+      }).then(() => {
+        this.props.sbContext.getOldMessages(this.state.messages.length).then((r)=>{
+          this.setState({ messages: r })
+        })
+      })
+      /*
       const key = JSON.parse(localStorage.getItem(this.props.roomId))
       this.SB.setIdentity(key).then(async () => {
         await this.SB.connect(this.props.roomId)
@@ -92,10 +97,9 @@ class ChatRoom extends React.Component {
           }
         }
       })
+      */
     }
-    */
   }
-
 
   sb2giftedMessage = async (message) => {
     if (message.control) {
@@ -248,15 +252,19 @@ class ChatRoom extends React.Component {
         this.sendFiles()
       }
     } else {
-      //const message = new GiftedMessage(giftedMessage[0], true)
-      //setMessages([...messages, message])
-      //activeChatContext.sendMessage(message)
-      const message = await new SBMessage(
-        giftedMessage[0].text,
-        this.SB.channel.keys.personal_signKey,
-        this.SB.identity.exportable_pubKey
-      )
-      this.SB.sendMessage(message)
+      const msg_id = giftedMessage[0]._id;
+      giftedMessage[0].user = { _id: this.sbContext.key, name: this.sbContext.username }
+      this.setState({ messages: [...this.state.messages, giftedMessage[0]] })
+
+      let sbm = new SB.SBMessage(this.sbContext.socket, giftedMessage[0].text)
+      sbm.send().then((c) => {
+        const messages = this.state.messages.reduce((acc, curr) => {
+          if (curr._id !== msg_id) acc.push(curr);
+          return acc;
+        }, []);
+        this.setState({ messages: [...messages] })
+      })
+
     }
   }
 
@@ -305,7 +313,6 @@ class ChatRoom extends React.Component {
 
   render() {
     const attachMenu = Boolean(this.state.anchorEl);
-
     return (
 
       <View style={{
@@ -325,7 +332,7 @@ class ChatRoom extends React.Component {
           messages={this.state.messages}
           onSend={this.sendMessages}
           // timeFormat='L LT'
-          user={this.state.user}
+          user={{ _id: this.sbContext.key, name: this.sbContext.username }}
           inverted={false}
           alwaysShowSend={true}
           loadEarlier={this.props.sbContext.moreMessages}
@@ -355,7 +362,7 @@ class ChatRoom extends React.Component {
               loading={this.state.loading} />
           }}
           renderBubble={(props) => {
-            return <RenderBubble {...props} keys={{ ...this.props.sbContext.keys, ...this.props.sbContext.userKey }}
+            return <RenderBubble {...props} keys={{ ...this.props.sbContext.socket.keys, ...this.props.sbContext.userKey }}
               SB={this.SB} />
           }}
           renderSend={RenderSend}

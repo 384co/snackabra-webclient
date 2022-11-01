@@ -139,7 +139,7 @@ const RenderBubble = (props) => {
   return (
     <Grid style={{ width: '90%' }}>
       {(isSameUser(props.currentMessage, props.previousMessage) && isSameDay(props.currentMessage, props.previousMessage)) || sbCrypto.compareKeys(current_user_key, props.keys.exportable_pubKey)
-        ? null
+        ? 'message is'
         : <Typography variant={'body1'} style={{
           width: '50vw',
           paddingBottom: 3,

@@ -1,4 +1,5 @@
-import { makeObservable, observable, action, computed, onBecomeObserved, onBecomeUnobserved, configure } from "mobx"
+import { makeObservable, observable, action, computed, onBecomeObserved, onBecomeUnobserved, configure, toJS } from "mobx"
+import { Actions } from "react-native-gifted-chat";
 const SB = require('snackabra')
 
 configure({
@@ -42,6 +43,7 @@ class SnackabraStore {
 
     makeObservable(this, {
       createRoom: action,
+      getOldMessages: action,
       username: computed,
       key: computed,
       loadingMore: observable,
@@ -112,16 +114,66 @@ class SnackabraStore {
     this.userName = userName;
   }
 
+  get giftedMessages() {
+    return toJS(this.messages)
+  }
+
   get key() {
-    return this.userKey
+    return toJS(this.userKey)
   }
 
   set key(key) {
     this.userKey = key
   }
 
+  addMessage = (message) => {
+    this.messages = [...this.messages, message]
+  }
+
   receiveMessage = (m) => {
     console.log(`got message: ${m}`)
+  }
+
+  parseMessages = () => {
+    return Promise((resolve, reject) => {
+
+    })
+  }
+
+  getOldMessages = (length) => {
+    const messageIdRegex = /([A-Za-z0-9+/_\-=]{64})([01]{42})/
+    const sbCrypto = new SB.SBCrypto()
+
+    return new Promise(async (res) => {
+      const messages = await this.socket.api.getOldMessages(length)
+      let r_messages = [];
+      Object.keys(messages).forEach(async (value, index) => {
+        const z = messageIdRegex.exec(value)
+        if (z && messages[value].hasOwnProperty('encrypted_contents')) {
+          let m = {
+            type: 'encryptedChannelMessage',
+            channelID: z[1],
+            timestampPrefix: z[2],
+            encrypted_contents: {
+              content: messages[value].encrypted_contents.content,
+              iv: new Uint8Array(Array.from(Object.values(messages[value].encrypted_contents.iv)))
+            }
+          }
+          const unwrapped = await sbCrypto.unwrap(this.socket.keys.encryptionKey, m.encrypted_contents, 'string');
+          m = { ...m, ...JSON.parse(unwrapped) };
+          m.user = { name: m.sender_username ? m.sender_username : 'Unknown', _id: m.sender_pubKey }
+          if (!m.hasOwnProperty('_id')) {
+            m.text = m.contents
+            m._id = m.channelID + m.timestampPrefix
+          }
+          r_messages.push(m)
+        }
+        if (index === Object.keys(messages).length - 1) {
+          res(r_messages)
+        }
+      })
+    })
+
   }
 
   createRoom = (secret) => {
@@ -137,6 +189,7 @@ class SnackabraStore {
           handle.channelId // since we're owner this is optional
 
         ).then((c) => c.ready).then((c) => {
+          console.log(handle.key, JSON.stringify(handle.key))
           this.socket = c;
           this.activeroom = handle.channelId
           this.ownerKey = handle.key;
@@ -145,7 +198,7 @@ class SnackabraStore {
             name: 'Room ' + Math.floor(Object.keys(this.rooms).length + 1),
             id: handle.channelId,
             key: handle.key,
-            userName: '',
+            userName: 'Me',
             lastSeenMessage: 0,
             messages: []
           }
@@ -183,32 +236,32 @@ class SnackabraStore {
   */
 
   joinRoom = async (roomId, messageCallback) => {
-    this.SB = new SB.Snackabra(this.sbConfig);
-    this.activeroom = roomId
-    this.userKey = this.rooms[roomId].key;
-    this.SB.connect(
-      // print out any messages we get
-      (m) => {
-        if (messageCallback) {
-          messageCallback(m)
-        } else {
-          this.receiveMessage(m);
-        }
-      },
-      this.rooms[roomId].key, // if we omit then we're connecting anonymously
-      roomId, // optional, will recreate if missing
-    ).then((c) => c.ready).then((c) => {
-      console.log(c)
-      this.socket = c;
-      c.userName = this.rooms[roomId].userName ? this.rooms[roomId].userName : 'Unset'
-
-      let sbm = new SB.SBMessage(c, "Hello from test04d!")
-      console.log("++++test04d++++ will try to send this message:")
-      console.log(sbm)
-      sbm.send().then((c) => {
-        console.log("++++test04d++++ back from send promise - got response:")
-        console.log(c)
-      })
+    return new Promise((resolve, reject) => {
+      try {
+        this.SB = new SB.Snackabra(this.sbConfig);
+        this.activeroom = roomId
+        this.userKey = this.rooms[roomId].key;
+        this.SB.connect(
+          // print out any messages we get
+          (m) => {
+            if (messageCallback) {
+              messageCallback(m)
+            } else {
+              this.receiveMessage(m);
+            }
+          },
+          this.rooms[roomId].key, // if we omit then we're connecting anonymously
+          roomId, // optional, will recreate if missing
+        ).then((c) => c.ready).then((c) => {
+          console.log(c)
+          this.socket = c;
+          this.username = this.rooms[roomId].userName ? this.rooms[roomId].userName : 'Unset';
+          c.userName = this.userName
+          resolve(this)
+        })
+      } catch (e) {
+        reject(e)
+      }
 
     })
   }
