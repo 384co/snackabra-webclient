@@ -1,5 +1,4 @@
 import { makeObservable, observable, action, computed, onBecomeObserved, onBecomeUnobserved, configure, toJS } from "mobx"
-import { Actions } from "react-native-gifted-chat";
 const SB = require('snackabra')
 
 configure({
@@ -13,14 +12,14 @@ class SnackabraStore {
     channel_ws: process.env.REACT_APP_ROOM_SERVER_WS,
     storage_server: process.env.REACT_APP_STORAGE_SERVER
   }
-  socket;
+  channel;
   rooms = {};
   motd = "";
   locked = false;
   isVerifiedGuest = false;
   roomMetadata = {};
   showAdminTab = false;
-  userName = '';
+  userName = 'Me';
   ownerRotation;
   ownerKey;
   roomCapacity = 20;
@@ -40,12 +39,11 @@ class SnackabraStore {
   SB = new SB.Snackabra(this.sbConfig)
 
   constructor() {
-
     makeObservable(this, {
       createRoom: action,
       getOldMessages: action,
       username: computed,
-      key: computed,
+      socket: computed,
       loadingMore: observable,
       sbConfig: observable,
       roomMetadata: observable,
@@ -68,7 +66,7 @@ class SnackabraStore {
       joinRequests: observable,
       roomAdmin: observable,
       contacts: observable,
-      socket: observable
+      channel: observable
     })
 
     onBecomeObserved(this, "roomMetadata", this.resume)
@@ -97,6 +95,14 @@ class SnackabraStore {
     document.cacheDb.setItem('sb_data', JSON.stringify(this))
   }
 
+  get socket() {
+    return toJS(this.channel);
+  }
+
+  set socket(channel) {
+    this.channel = channel;
+  }
+
   set activeroom(channelId) {
     this.activeRoom = channelId
   }
@@ -114,71 +120,39 @@ class SnackabraStore {
     this.userName = userName;
   }
 
-  get giftedMessages() {
-    return toJS(this.messages)
+  receiveMessage = (m, messageCallback) => {
+    m.user._id = JSON.stringify(m.user._id);
+    m.createdAt = new Date(parseInt(m.timestampPrefix,2));
+    this.rooms[this.activeRoom].messages = [...toJS(this.rooms[this.activeRoom].messages), m]
+    this.save()
+    messageCallback(m)
   }
 
-  get key() {
-    return toJS(this.userKey)
-  }
+  #mergeMessages = (existing, received) => {
+    let merged = [];
+    for (let i = 0; i < existing.length + received.length; i++) {
+      if (received.find((itmInner) => itmInner._id === existing[i]?._id)) {
+        merged.push({
+          ...existing[i],
+          ...(received.find((itmInner) => itmInner._id === existing[i]?._id))
+        });
+      } else {
+        merged.push(received[i])
+      }
 
-  set key(key) {
-    this.userKey = key
-  }
-
-  addMessage = (message) => {
-    this.messages = [...this.messages, message]
-  }
-
-  receiveMessage = (m) => {
-    console.log(`got message: ${m}`)
-  }
-
-  parseMessages = () => {
-    return Promise((resolve, reject) => {
-
-    })
+    }
+    return merged.sort((a, b) => (a._id > b._id) ? 1 : -1)
   }
 
   getOldMessages = (length) => {
     return new Promise((resolve) => {
       this.socket.api.getOldMessages(length).then((r_messages) => {
-        console.log("getOldMessages() got:")
-        console.log(r_messages);
+        this.rooms[this.activeRoom].messages = this.#mergeMessages(toJS(this.rooms[this.activeRoom].messages), r_messages)
+        this.save()
         resolve(r_messages);
       })
     })
   }
-
-  // const messageIdRegex = /([A-Za-z0-9+/_\-=]{64})([01]{42})/
-  // const sbCrypto = new SB.SBCrypto()
-  // const messages = await this.socket.api.getOldMessages(length)
-  // let r_messages = [];
-  // Object.keys(messages).forEach(async (value, index) => {
-  //   const z = messageIdRegex.exec(value)
-  //   if (z && messages[value].hasOwnProperty('encrypted_contents')) {
-  //     let m = {
-  //       type: 'encryptedChannelMessage',
-  //       channelID: z[1],
-  //       timestampPrefix: z[2],
-  //       encrypted_contents: {
-  //         content: messages[value].encrypted_contents.content,
-  //         iv: new Uint8Array(Array.from(Object.values(messages[value].encrypted_contents.iv)))
-  //       }
-  //     }
-  //     const unwrapped = await sbCrypto.unwrap(this.socket.keys.encryptionKey, m.encrypted_contents, 'string');
-  //     m = { ...m, ...JSON.parse(unwrapped) };
-  //     m.user = { name: m.sender_username ? m.sender_username : 'Unknown', _id: m.sender_pubKey }
-  //     if (!m.hasOwnProperty('_id')) {
-  //       m.text = m.contents
-  //       m._id = m.channelID + m.timestampPrefix
-  //     }
-  //     r_messages.push(m)
-  //   }
-  //   if (index === Object.keys(messages).length - 1) {
-  //     res(r_messages)
-  //   }
-  // })
 
   createRoom = (secret) => {
     return new Promise((resolve, reject) => {
@@ -186,6 +160,7 @@ class SnackabraStore {
       this.SB.create(this.sbConfig, secret).then((handle) => {
         console.log(`you can (probably) connect here: localhost:3000/rooms/${handle.channelId}`)
         // connect to the websocket with our handle info:
+        console.log(handle)
         this.SB.connect(
           // must have a message handler:
           (m) => { this.receiveMessage(m) },
@@ -193,22 +168,22 @@ class SnackabraStore {
           handle.channelId // since we're owner this is optional
 
         ).then((c) => c.ready).then((c) => {
-          console.log(handle.key, JSON.stringify(handle.key))
-          this.socket = c;
-          this.activeroom = handle.channelId
-          this.ownerKey = handle.key;
-          this.key = handle.key;
-          this.rooms[handle.channelId] = {
-            name: 'Room ' + Math.floor(Object.keys(this.rooms).length + 1),
-            id: handle.channelId,
-            key: handle.key,
-            userName: 'Me',
-            lastSeenMessage: 0,
-            messages: []
+          if(c){
+            console.log(c)
+            this.socket = c;
+            this.activeroom = handle.channelId
+            this.socket.userName = 'Me'
+            this.rooms[handle.channelId] = {
+              name: 'Room ' + Math.floor(Object.keys(this.rooms).length + 1),
+              id: handle.channelId,
+              key: handle.key,
+              userName: 'Me',
+              lastSeenMessage: 0,
+              messages: []
+            }
+  
+            this.save();
           }
-          this.roomOwner = true;
-          this.roomAdmin = true;
-          this.save();
           resolve('connected')
           // say hello to everybody! upon success it will return "success"
           // (new SBMessage(c, "Hello from TestBot!")).send().then((c) => { console.log(`test message sent! (${c})`) })
@@ -219,54 +194,65 @@ class SnackabraStore {
     })
 
   }
-  /*
-  const selectRoom = async (selectedRoom) => {
-    try {
 
-      setMessages([])
-      await loadPersonalKeys(selectedRoom);
-      join(selectedRoom);
-      setUsername(getUsername())
-      let rooms = roomContext.rooms;
-      roomContext.goToRoom(selectedRoom)
-      if (!rooms.hasOwnProperty(selectedRoom)) {
-        rooms[selectedRoom] = { name: 'Room ' + (Object.keys(rooms).length + 1).toString() };
-        //roomContext.updateRoomNames(rooms)
-      }
-    } catch (e) {
-      console.error(e);
-    }
+  getExistingRoom = (channelId) => {
+    return toJS(this.rooms[channelId])
   }
-  */
 
-  joinRoom = async (roomId, messageCallback) => {
-    return new Promise((resolve, reject) => {
+  setMessages = (channelId, messages) => {
+    return this.rooms[channelId].messages = messages;
+  }
+
+  getMessages = (channelId) => {
+    if (this.rooms[channelId]) {
+      return toJS(this.rooms[channelId].messages);
+    } else {
+      return []
+    }
+
+  }
+
+  connect = async ({ roomId, username, messageCallback, key, secret }) => {
+    return new Promise(async (resolve, reject) => {
       try {
         this.SB = new SB.Snackabra(this.sbConfig);
-        this.activeroom = roomId
-        this.userKey = this.rooms[roomId].key;
+        let channel, channelId;
+        if (secret) {
+          channel = await this.SB.create(this.sbConfig, secret)
+        }
+        key = key ? key : channel?.key;
+        console.log(key)
+        channelId = roomId ? roomId : channel?.channelId;
         this.SB.connect(
-          // print out any messages we get
-          (m) => {
-            if (messageCallback) {
-              messageCallback(m)
-            } else {
-              this.receiveMessage(m);
-            }
-          },
-          this.rooms[roomId].key, // if we omit then we're connecting anonymously
-          roomId, // optional, will recreate if missing
+          (m) => { this.receiveMessage(m, messageCallback) }, // must have a message handler:
+          key ? key : null, // if we omit then we're connecting anonymously (and not as owner)
+          channelId // since we're owner this is optional
+
         ).then((c) => c.ready).then((c) => {
-          console.log(c)
-          this.socket = c;
-          this.username = this.rooms[roomId].userName ? this.rooms[roomId].userName : 'Unset';
-          c.userName = this.userName
-          resolve(this)
+          if(c){
+            console.log(c)
+            this.socket = c;
+            this.activeroom = channelId
+            this.rooms[channelId] = {
+              name: 'Room ' + Math.floor(Object.keys(this.rooms).length + 1),
+              id: channelId,
+              key: typeof key !== 'undefined' ? key : c.exportable_privateKey,
+              userName: username !== '' && typeof username !== 'undefined' ? username : '',
+              lastSeenMessage: 0,
+              messages: []
+            }
+            this.key = typeof key !== 'undefined' ? key : c.exportable_privateKey
+            this.socket.userName = 'Me'
+            this.save();
+          }
+
+          resolve('connected')
+        }).catch((e) => {
+          reject(e)
         })
       } catch (e) {
         reject(e)
       }
-
     })
   }
 

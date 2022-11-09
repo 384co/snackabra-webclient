@@ -20,7 +20,7 @@ const SB = require('snackabra')
 
 @observer
 class ChatRoom extends React.Component {
-
+  sending = {}
   state = {
     openPreview: false,
     openChangeName: false,
@@ -50,126 +50,48 @@ class ChatRoom extends React.Component {
     handleResize();
 
 
+
     if (!this.sbContext.rooms[this.props.roomId]?.key) {
       this.setState({ openFirstVisit: true })
     } else {
-      this.props.sbContext.joinRoom(this.props.roomId, (msg) => {
+      this.connect();
+    }
+  }
 
-        if (msg) {
-          msg.user = { name: msg.sender_username, _id: this.sbContext.key }
-          if (!msg.hasOwnProperty('_id')) {
-            msg.text = msg.contents
-            msg._id = msg.channelID + msg.timestampPrefix
-          }
-          this.setState({ messages: [...this.state.messages, msg] })
-        }
-      }).then(() => {
-        this.props.sbContext.getOldMessages(this.state.messages.length).then((r)=>{
-          this.setState({ messages: r })
+  connect = (username) => {
+    const room = this.sbContext.getExistingRoom(this.props.roomId)
+    const options = {
+      roomId: this.props.roomId,
+      username: 'Me',
+      key: room?.key ? room?.key : null,
+      secret: null,
+      messageCallback: this.recieveMessages
+    }
+    // this.setState({ messages: this.sbContext.getMessages(this.props.roomId) })
+    this.props.sbContext.connect(options).then(() => {
+      this.props.sbContext.getOldMessages(0).then((r) => {
+        const m = r.map((item, i) => {
+          item.user._id = JSON.stringify(item.user._id);
+          item.createdAt = new Date(parseInt(item.timestampPrefix, 2));
+          return item;
         })
+        this.setState({ messages: [...m] })
       })
-      /*
-      const key = JSON.parse(localStorage.getItem(this.props.roomId))
-      this.SB.setIdentity(key).then(async () => {
-        await this.SB.connect(this.props.roomId)
-        this.SB.channel.socket.onJoin = async (message) => {
-          console.log('here', message)
-        }
-        this.props.sbContext.goToRoom(this.props.roomId, this.SB.channel.admin)
-        this.props.sbContext.loadRoom(this.SB.channel.metaData, this.sendSystemInfo, this.sendSystemMessage)
-        this.setState({ user: this.getUser() })
-        this.SB.channel.api.getOldMessages(0).then(async (messages) => {
-          const _oldMessages = [];
-          for (let x in messages) {
-            const message = {};
-            message[x] = messages[x];
-            const sb_message = await this.sb2giftedMessage(JSON.parse(await this.SB.channel.socket.receive(message)))
-            if (sb_message) {
-              _oldMessages.push(sb_message)
-            }
-          }
-          this.setState({ messages: _oldMessages })
-        });
-        this.SB.channel.socket.onMessage = async (message) => {
-          const sb_message = await this.sb2giftedMessage(JSON.parse(message))
-          if (sb_message) {
-            this.setState({ messages: [...this.state.messages, sb_message] })
-          }
-        }
-      })
-      */
-    }
+    })
   }
 
-  sb2giftedMessage = async (message) => {
-    if (message.control) {
-      this.setState({ controlMessages: [...this.state.controlMessages, message] })
-      return;
-    }
-    let _text_verified;
-    let _image_verified = true;
-    let _imageMetadata_verified = true;
-    const sign = message.sign;
-    const _image_sign = message.image_sign
-    const _imageMetadata_sign = message.imageMetadata_sign;
-    if (!sign || !_image_sign || !_imageMetadata_sign) {
-      _text_verified = false
-    } else {
-      const sender_pubKey = await this.SB.crypto.importKey("jwk", message.sender_pubKey, "ECDH", true, []);
-      const verificationKey = await this.SB.crypto.deriveKey(this.SB.channel.keys.room_privateSignKey, sender_pubKey, "HMAC", false, ["sign", "verify"])
-      _text_verified = await this.SB.crypto.verify(verificationKey, sign, message.contents)
-      _image_verified = await this.SB.crypto.verify(verificationKey, _image_sign, message.image)
-      _imageMetadata_verified = await this.SB.crypto.verify(verificationKey, _imageMetadata_sign, typeof message.imageMetaData === "object" ? JSON.stringify(message.imageMetaData) : message.imageMetaData)
-    }
-    return {
-      _id: message._id,
-      text: message.contents,
-      user: this.getUser(message),
-      whispered: message.encrypted,
-      createdAt: parseInt(message._id.slice(-42), 2),
-      verified: _text_verified && _image_verified && _imageMetadata_verified,
-      image: message.image,
-      imageMetaData: typeof message.imageMetaData === "object" ? message.imageMetaData : JSON.parse(message.imageMetaData)
-
-    }
-
-  }
-
-  // START NEW FUNCTIONS ***************************************************
-  getUser = (message = null) => {
-    let username, user_id;
-    const contacts = this.props.sbContext.contacts;
-    if (message) {
-      if (message.verificationToken) {
-        return
-      }
-      user_id = JSON.stringify(message.sender_pubKey);
-      let user_key = message.sender_pubKey.x + " " + message.sender_pubKey.y;
-      const unnamed = ['Anonymous', 'No Name', 'Nameless', 'Incognito', 'Voldemort', 'Uomo Senza Nome', 'The Kid', 'Gunslinger', 'IT ', 'Person in Black', 'बेनाम', 'βλέμμυες', '混沌'];
-      const local_username = contacts.hasOwnProperty(user_key) && contacts[user_key].split(' ')[0] !== 'User' && !unnamed.includes(contacts[user_key].trim()) ? contacts[user_key] : 'Unnamed';
-      contacts[user_key] = local_username;
-      const alias = message.hasOwnProperty('sender_username') ? message.sender_username : '';
-      if (user_key === (this.SB.identity.exportable_pubKey.x + " " + this.SB.identity.exportable_pubKey.y) || local_username === 'Me') {
-        contacts[user_key] = 'Me';
-        username = 'Me';
-        user_id = JSON.stringify(this.SB.identity.exportable_pubKey);
-      } else {
-        if (alias !== '') {
-          username = (local_username === alias || local_username === 'Unnamed') ? alias : alias + '  (' + local_username + ')';
+  recieveMessages = (msg) => {
+    if (msg) {
+      const messages = this.state.messages.reduce((acc, curr) => {
+        if (!this.sending.hasOwnProperty(curr._id)) {
+          acc.push(curr);
         } else {
-          username = '(' + local_username + ')';
+          delete this.sending[curr._id]
         }
-        if (this.SB.crypto.areKeysSame(message.sender_pubKey, this.SB.channel.keys.exportable_verifiedGuest_pubKey)) {
-          username += "  (Verified)"
-        } else if (this.SB.crypto.areKeysSame(message.sender_pubKey, this.SB.channel.keys.exportable_owner_pubKey)) {
-          username += "  (Owner)"
-        }
-      }
-    } else {
-      username = 'Me';
-      user_id = JSON.stringify(this.SB.identity.exportable_pubKey);
+        return acc;
+      }, []);
+      this.setState({ messages: [...messages, msg] })
     }
-    return { _id: user_id, name: username };
   }
 
   notify = (message, severity) => {
@@ -217,10 +139,6 @@ class ChatRoom extends React.Component {
     }
   }
 
-  getOldMessages = async () => {
-    this.SB.channel.api.getOldMessages()
-  }
-
   loadFiles = async (loaded) => {
     this.setState({ loading: false, files: loaded })
   }
@@ -253,17 +171,13 @@ class ChatRoom extends React.Component {
       }
     } else {
       const msg_id = giftedMessage[0]._id;
-      giftedMessage[0].user = { _id: this.sbContext.key, name: this.sbContext.username }
-      this.setState({ messages: [...this.state.messages, giftedMessage[0]] })
 
+      giftedMessage[0].user = { _id: JSON.stringify(this.sbContext.socket.exportable_pubKey), name: this.sbContext.username }
+      console.log(giftedMessage[0])
+      this.setState({ messages: [...this.state.messages, giftedMessage[0]] })
+      this.sending[msg_id] = msg_id
       let sbm = new SB.SBMessage(this.sbContext.socket, giftedMessage[0].text)
-      sbm.send().then((c) => {
-        const messages = this.state.messages.reduce((acc, curr) => {
-          if (curr._id !== msg_id) acc.push(curr);
-          return acc;
-        }, []);
-        this.setState({ messages: [...messages] })
-      })
+      sbm.send();
 
     }
   }
@@ -325,14 +239,15 @@ class ChatRoom extends React.Component {
         <ChangeNameDialog open={this.state.openChangeName} />
         <MotdDialog open={this.state.openMotd} roomName={this.props.roomName} />
         <AttachMenu open={attachMenu} handleClose={this.handleClose} />
-        <FirstVisitDialog open={this.state.openFirstVisit} onClose={() => {
+        <FirstVisitDialog open={this.state.openFirstVisit} sbContext={this.sbContext} messageCallback={this.recieveMessages} onClose={(username) => {
           this.setState({ openFirstVisit: false })
+          this.connect(username)
         }} roomId={this.state.roomId} />
         <GiftedChat
           messages={this.state.messages}
           onSend={this.sendMessages}
           // timeFormat='L LT'
-          user={{ _id: this.sbContext.key, name: this.sbContext.username }}
+          user={{ _id: JSON.stringify(this.sbContext.socket.exportable_pubKey), name: this.sbContext.socket.userName }}
           inverted={false}
           alwaysShowSend={true}
           loadEarlier={this.props.sbContext.moreMessages}
@@ -363,6 +278,7 @@ class ChatRoom extends React.Component {
           }}
           renderBubble={(props) => {
             return <RenderBubble {...props} keys={{ ...this.props.sbContext.socket.keys, ...this.props.sbContext.userKey }}
+              socket={this.props.sbContext.socket}
               SB={this.SB} />
           }}
           renderSend={RenderSend}

@@ -4,8 +4,7 @@ import { Grid, TextField, Typography } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
 import { useState } from "react";
 import { Trans } from "@lingui/macro";
-import {observer} from "mobx-react"
-import sbContext from "../../stores/Snackabra.Store"
+import { observer } from "mobx-react"
 
 const FirstVisitDialog = observer((props) => {
   const [open, setOpen] = useState(props.open);
@@ -22,14 +21,12 @@ const FirstVisitDialog = observer((props) => {
     setText(e.target.value)
   }
 
-  const submit = () => {
+  const submit = async () => {
     setSubmitClick(true)
-    sbContext.activeroom = props.roomId;
-    sbContext.username = text;
-   // localStorage.setItem(props.roomId + '_username', text)
+    // localStorage.setItem(props.roomId + '_username', text)
     //activeChatContext.selectRoom(props.roomId);
-    props.onClose();
-    setTimeout(()=> {
+    props.onClose(text);
+    setTimeout(() => {
       //page.reload();
     }, 1000)
 
@@ -38,7 +35,7 @@ const FirstVisitDialog = observer((props) => {
   const onClose = () => {
     if (!submitClick) {
       setOpen(true)
-    }else{
+    } else {
       setOpen(false)
     }
   }
@@ -49,9 +46,9 @@ const FirstVisitDialog = observer((props) => {
       onClose={onClose}
       open={open}>
       <Grid container
-            direction="row"
-            justifyContent="flex-start"
-            alignItems="flex-start">
+        direction="row"
+        justifyContent="flex-start"
+        alignItems="flex-start">
         <Grid item xs={12}>
           <Typography variant={'body1'}>
             <Trans id='first visit modal message'>Welcome! If this is the first time you’ve been to this room, enter
@@ -60,7 +57,7 @@ const FirstVisitDialog = observer((props) => {
               your backup - press ‘Cancel’ and go to the ‘Home’ tab.</Trans>
           </Typography>
         </Grid>
-        <Grid item xs={12} sx={{pb:2, pt: 2}}>
+        <Grid item xs={12} sx={{ pb: 2, pt: 2 }}>
           <TextField
             id="Username"
             placeholder="Username"
