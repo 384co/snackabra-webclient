@@ -70,27 +70,48 @@ class ChatRoom extends React.Component {
     // this.setState({ messages: this.sbContext.getMessages(this.props.roomId) })
     this.props.sbContext.connect(options).then(() => {
       this.props.sbContext.getOldMessages(0).then((r) => {
-        const m = r.map((item, i) => {
-          item.user._id = JSON.stringify(item.user._id);
-          item.createdAt = new Date(parseInt(item.timestampPrefix, 2));
-          return item;
+        let controlMessages = [];
+        let messages  = [];
+        r.forEach((m, i)=>{
+          if(!m.control){
+            m.user._id = JSON.stringify(m.user._id);
+            m.createdAt = new Date(parseInt(m.timestampPrefix, 2));
+            messages.push(m)
+          }else{
+            controlMessages.push(m)
+          }
+
         })
-        this.setState({ messages: [...m] })
+        this.setState({controlMessages: controlMessages})
+        if (this.props.sbContext.motd !== '') {
+          this.sendSystemInfo('MOTD: ' + this.props.sbContext.motd, () => {
+            this.setState({ messages: [...this.state.messages, ...messages] })
+          })
+        } else {
+          this.setState({ messages: [...messages] })
+        }
+
       })
     })
   }
 
   recieveMessages = (msg) => {
     if (msg) {
-      const messages = this.state.messages.reduce((acc, curr) => {
-        if (!this.sending.hasOwnProperty(curr._id)) {
-          acc.push(curr);
-        } else {
-          delete this.sending[curr._id]
-        }
-        return acc;
-      }, []);
-      this.setState({ messages: [...messages, msg] })
+      console.log(msg)
+      if (!msg.control) {
+        const messages = this.state.messages.reduce((acc, curr) => {
+          if (!this.sending.hasOwnProperty(curr._id)) {
+            acc.push(curr);
+          } else {
+            delete this.sending[curr._id]
+          }
+          return acc;
+        }, []);
+        this.setState({ messages: [...messages, msg] })
+      } else {
+        this.setState({ controlMessages: [...this.state.controlMessages, msg] })
+      }
+
     }
   }
 
@@ -103,7 +124,9 @@ class ChatRoom extends React.Component {
   openImageOverlay = (message) => {
     this.setState({ img: message.image, openPreview: true })
     try {
-      this.SB.storage.retrieveDataFromMessage(message, this.state.controlMessages).then((data) => {
+      console.log(message)
+      this.sbContext.SB.storage.retrieveDataFromMessage(message, this.state.messages).then((data) => {
+        console.log(data)
         if (data.hasOwnProperty('error')) {
           //activeChatContext.sendSystemMessage('Could not open image: ' + data['error']);
         } else {
@@ -143,37 +166,74 @@ class ChatRoom extends React.Component {
     this.setState({ loading: false, files: loaded })
   }
   //TODO: for images render in chat and then replace with received message
-  sendFiles = () => {
+  sendFiles = (giftedMessage) => {
     const fileMessages = [];
-    this.state.files.forEach((file, i) => {
-      /*
-      const message = new GiftedMessage({
+    const arrayBufferPromises = [];
+    this.state.files.forEach(async (file, i) => {
+
+      const message = {
         createdAt: new Date().toString(),
         text: "",
         image: file.restrictedUrl,
-        user: this.state.user,
-        _id: "1fa5a124-451d-4fc8-88eb-49309d47732" + i
-      }, true)
+        user: this.sbContext.user,
+        _id: 'sending_' + giftedMessage[0]._id
+      }
+      this.sending[message._id] = message._id
       fileMessages.push(message)
+      arrayBufferPromises.push(file.data.arrayBuffer())
+      console.log(file)
+      // this.sbContext.SB.storage.storeObject(file.arrayBuffer).then(()=>{
 
-       */
-      this.SB.sendFile(file.data)
+      // })
+      //this.SB.sendFile(file.data)
     })
-    //setMessages([...messages, ...fileMessages])
-    this.removeInputFiles()
+    this.setState({ messages: [...this.state.messages, ...fileMessages] })
+
+    Promise.all(arrayBufferPromises).then((a) => {
+      a.forEach((ab, i) => {
+        let sbm = new SB.SBMessage(this.sbContext.socket, '', this.state.files[i].restrictedUrl)
+        sbm.send().then(() => {
+          Promise.all([
+            this.sbContext.SB.storage.storeObject(ab, 'f', this.sbContext.activeroom),
+            this.sbContext.SB.storage.storeObject(ab, 'p', this.sbContext.activeroom)
+          ]).then(async (o) => {
+            console.log(o)
+            let sbm = new SB.SBMessage(this.sbContext.socket, '', this.state.files[i].restrictedUrl)
+            const imageMetadata = {
+              imageId: o[0].id,
+              imageKey: o[0].key,
+              previewId: o[1].id,
+              previewKey: o[1].key,
+            }
+            sbm.contents.id = o[0].id;
+            sbm.contents.verificationToken = await o[0].verification
+            sbm.contents.control = true;
+            sbm.setImageMetadata(imageMetadata).then(() => {
+              sbm.send();
+            })
+          }).finally(() => {
+            if (i === arrayBufferPromises.length - 1) {
+              this.removeInputFiles()
+            }
+          })
+        })
+
+      })
+
+    })
   }
 
 
   sendMessages = async (giftedMessage) => {
     if (giftedMessage[0].text === "") {
       if (this.state.files.length > 0) {
-        this.sendFiles()
+        this.sendFiles(giftedMessage)
       }
     } else {
+      giftedMessage[0]._id = 'sending_' + giftedMessage[0]._id;
       const msg_id = giftedMessage[0]._id;
 
       giftedMessage[0].user = { _id: JSON.stringify(this.sbContext.socket.exportable_pubKey), name: this.sbContext.username }
-      console.log(giftedMessage[0])
       this.setState({ messages: [...this.state.messages, giftedMessage[0]] })
       this.sending[msg_id] = msg_id
       let sbm = new SB.SBMessage(this.sbContext.socket, giftedMessage[0].text)
@@ -182,7 +242,7 @@ class ChatRoom extends React.Component {
     }
   }
 
-  sendSystemInfo = (msg_string) => {
+  sendSystemInfo = (msg_string, callback) => {
     this.setState({
       messages: [...this.state.messages, {
         _id: this.state.messages.length,
@@ -192,6 +252,10 @@ class ChatRoom extends React.Component {
         verified: true,
         info: true
       }]
+    }, () => {
+      if (callback) {
+        callback()
+      }
     })
   }
 
@@ -199,6 +263,7 @@ class ChatRoom extends React.Component {
     this.setState({
       messages: [...this.state.messages, {
         _id: this.state.messages.length,
+        user: { _id: 'system', name: 'System Message' },
         text: message,
         system: true
       }]
@@ -236,7 +301,9 @@ class ChatRoom extends React.Component {
       }}>
         <ImageOverlay open={this.state.openPreview} img={this.state.img} imgLoaded={this.state.imgLoaded}
           onClose={this.imageOverlayClosed} />
-        <ChangeNameDialog open={this.state.openChangeName} />
+        <ChangeNameDialog open={this.state.openChangeName} onClose={() => {
+          this.setState({ openChangeName: false })
+        }} />
         <MotdDialog open={this.state.openMotd} roomName={this.props.roomName} />
         <AttachMenu open={attachMenu} handleClose={this.handleClose} />
         <FirstVisitDialog open={this.state.openFirstVisit} sbContext={this.sbContext} messageCallback={this.recieveMessages} onClose={(username) => {
@@ -247,7 +314,7 @@ class ChatRoom extends React.Component {
           messages={this.state.messages}
           onSend={this.sendMessages}
           // timeFormat='L LT'
-          user={{ _id: JSON.stringify(this.sbContext.socket.exportable_pubKey), name: this.sbContext.socket.userName }}
+          user={this.sbContext.user}
           inverted={false}
           alwaysShowSend={true}
           loadEarlier={this.props.sbContext.moreMessages}

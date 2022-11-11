@@ -4,14 +4,13 @@ import { Grid, TextField, Typography } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
 import { useState, useContext } from "react"
 import NotificationContext from "../../contexts/NotificationContext";
-import SnackabraContext from "../../contexts/SnackabraContext";
 import * as utils from "../../utils/utils";
+import { observer } from "mobx-react"
+import sbContext from "../../stores/Snackabra.Store"
 
 
-
-const ImportRoomKeys = () => {
+const ImportRoomKeys = observer((props) => {
   const Notifications = useContext(NotificationContext)
-  const sbContext = useContext(SnackabraContext)
   const [key, setKey] = useState('No file selected');
 
   let fileReader;
@@ -48,8 +47,7 @@ const ImportRoomKeys = () => {
 
   const importKeys = () =>{
     try {
-      utils.importFile(key)
-      sbContext.processLocalStorage()
+      sbContext.importRoom(JSON.parse(key))
       Notifications.setMessage('Key file imported!');
       Notifications.setSeverity('success');
       Notifications.setOpen(true)
@@ -103,6 +101,6 @@ const ImportRoomKeys = () => {
 
     </Grid>
   )
-}
+})
 
 export default ImportRoomKeys

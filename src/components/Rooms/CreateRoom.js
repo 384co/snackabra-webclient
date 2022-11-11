@@ -2,6 +2,7 @@ import * as React from "react"
 import { Trans } from "@lingui/macro";
 import { Grid, TextField } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
+import CircularProgress from '@mui/material/CircularProgress';
 import { useState, useContext } from "react"
 import NotificationContext from "../../contexts/NotificationContext";
 import {observer} from "mobx-react"
@@ -11,11 +12,17 @@ import sbContext from "../../stores/Snackabra.Store"
 const CreateRoom = observer((props) => {
   const Notifications = useContext(NotificationContext)
   const [secret, setSecret] = useState('');
+  const [creating, setCreating] = useState(false);
 
-  const success = () => {
+  const success = (roomId) => {
     Notifications.setMessage('Room Created!');
     Notifications.setSeverity('success');
     Notifications.setOpen(true)
+    setCreating(false)
+    setTimeout(()=>{
+      window.location.href = window.location.origin+`/rooms/${roomId}`
+    }, 750)
+    
   }
 
   const error = () => {
@@ -27,12 +34,12 @@ const CreateRoom = observer((props) => {
 
   const createRoom = async () => {
     try {
-
-      await sbContext.createRoom(secret)
+      setCreating(true)
+      const roomId = await sbContext.createRoom(secret)
       if (typeof props?.onClose === 'function') {
         props.onClose()
       }
-      success();
+      success(roomId);
     } catch (e) {
       console.error(e)
       error()
@@ -57,8 +64,17 @@ const CreateRoom = observer((props) => {
         />
       </Grid>
       <Grid xs={12} item>
-        <StyledButton variant="contained" onClick={createRoom}><Trans id='new room header'>Create New
-          Room</Trans></StyledButton>
+      {creating ?
+            <StyledButton disabled variant={'outlined'}>
+              <CircularProgress color={"success"} size={20} />
+              &nbsp;Creating
+            </StyledButton>
+
+            :
+            <StyledButton variant="contained" onClick={createRoom}><Trans id='new room header'>Create New
+            Room</Trans></StyledButton>
+          }
+
       </Grid>
 
     </Grid>

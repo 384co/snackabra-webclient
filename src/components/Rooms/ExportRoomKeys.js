@@ -5,10 +5,10 @@ import DownloadIcon from '@mui/icons-material/Download';
 import { StyledButton } from "../../styles/Buttons";
 import { useState, useContext } from "react"
 import * as utils from '../../utils/utils';
-import SnackabraContext from "../../contexts/SnackabraContext";
+import {observer} from "mobx-react"
+import sbContext from "../../stores/Snackabra.Store"
 
-const ExportRoomKeys = () => {
-  const sbContext = useContext(SnackabraContext)
+const ExportRoomKeys = observer(() => {
   const [fileName, setFilename] = useState('SnackabraData');
 
   const getData = (pem) => {
@@ -108,6 +108,6 @@ const ExportRoomKeys = () => {
         : <Typography variant={'body1'} gutterBottom><Trans id='key export ls empty message'>Your localstorage does not have any data to export!</Trans></Typography>}
     </Grid>
   )
-}
+})
 
 export default ExportRoomKeys

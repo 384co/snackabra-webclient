@@ -25,7 +25,7 @@ import { downloadRoomData } from "../utils/utils";
 import Fab from '@mui/material/Fab';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import NotificationContext from "../contexts/NotificationContext";
-import {observer} from "mobx-react"
+import { observer } from "mobx-react"
 import sbContext from "../stores/Snackabra.Store"
 
 
@@ -43,13 +43,8 @@ const ResponsiveDrawer = observer((props) => {
   const [openImportDialog, setOpenImportDialog] = React.useState(false);
   const [openCreateDialog, setOpenCreateDialog] = React.useState(false);
   const [openAdminDialog, setOpenAdminDialog] = React.useState(false);
-  const [rooms, setRooms] = React.useState(sbContext.rooms);
   const [editingRoomId, setEditingRoomId] = React.useState(false);
   const [updatedName, setUpdatedName] = React.useState(false);
-
-  React.useEffect(() => {
-    setRooms(sbContext.rooms)
-  }, [sbContext.rooms])
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -66,12 +61,8 @@ const ResponsiveDrawer = observer((props) => {
   const submitName = (e) => {
     if (e.keyCode === 13) {
 
-      if (rooms.hasOwnProperty(editingRoomId)) {
-        const _roomMetadata = localStorage.hasOwnProperty('rooms') ? JSON.parse(localStorage.getItem('rooms')) : {}
-        _roomMetadata[editingRoomId] = { name: updatedName };
-        sbContext.updateRoomNames(_roomMetadata)
-        setEditingRoomId(false)
-      }
+      sbContext.roomName = updatedName
+      setEditingRoomId(false)
     }
   }
 
@@ -104,7 +95,7 @@ const ResponsiveDrawer = observer((props) => {
             <ListItemText primary={'Import a room'} />
           </ListItemButton>
         </ListItem>
-        <Hidden xsUp={!sbContext.roomAdmin}>
+        <Hidden xsUp={!sbContext.admin}>
           <ListItem disablePadding>
             <ListItemButton onClick={() => {
               setOpenAdminDialog(true)
@@ -120,14 +111,14 @@ const ResponsiveDrawer = observer((props) => {
         {Object.keys(sbContext.rooms).map((room, index) => {
           const bgColor = room === room_id ? '#ff5c42' : 'inherit';
           const color = room === room_id ? '#fff' : 'inherit';
-          const roomName = sbContext.rooms[room]?.name || `Room ${index + 1}`
+          const roomName = sbContext.rooms[room].name
           return (
             <ListItem key={index} disablePadding sx={{ backgroundColor: bgColor, color: color }}>
               <ListItemButton>
                 <Grid container
-                      direction="row"
-                      justifyContent={'space-between'}
-                      alignItems={'center'}
+                  direction="row"
+                  justifyContent={'space-between'}
+                  alignItems={'center'}
                 >
                   <Grid xs={7} item>
                     {editingRoomId !== room ?
@@ -135,13 +126,14 @@ const ResponsiveDrawer = observer((props) => {
                         <ListItemText primary={roomName} />
                       </a> :
                       <TextField value={updatedName}
-                                 onKeyDown={submitName}
-                                 onFocus={() => {
-                                   setUpdatedName(roomName)
-                                 }}
-                                 onChange={updateName}
-                                 variant="standard"
-                                 focused autoComplete={false} autoFocus />
+                        onKeyDown={submitName}
+                        onFocus={() => {
+                          setUpdatedName(roomName)
+                        }}
+                        onChange={updateName}
+                        variant="standard"
+                        focused
+                        autoFocus />
                     }
                   </Grid>
                   <Grid xs={5} item>
@@ -175,7 +167,6 @@ const ResponsiveDrawer = observer((props) => {
         setOpenImportDialog(false)
       }} />
       <CreateRoomDialog open={openCreateDialog} onClose={() => {
-        setRooms(sbContext.getRooms())
         setOpenCreateDialog(false)
       }} />
       <AdminDialog open={openAdminDialog} onClose={() => {
@@ -186,9 +177,9 @@ const ResponsiveDrawer = observer((props) => {
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
       >
         <Fab color="#ff5c42"
-             variant="extended"
-             onClick={handleDrawerToggle}
-             sx={{ mt: 2, position: 'absolute', display: { xs: 'flex-inline', sm: 'none' }, }}>
+          variant="extended"
+          onClick={handleDrawerToggle}
+          sx={{ mt: 2, position: 'absolute', display: { xs: 'flex-inline', sm: 'none' }, }}>
           <Typography variant={'body2'}>Menu</Typography>
           <KeyboardArrowRightIcon />
         </Fab>
@@ -229,7 +220,7 @@ const ResponsiveDrawer = observer((props) => {
         </Grid>)
         }
         {(room_id || sbContext.activeroom) &&
-          (<ChatRoom roomId={room_id ?  room_id : sbContext.activeroom} sbContext={sbContext} Notifications={Notifications} />)
+          (<ChatRoom roomId={room_id ? room_id : sbContext.activeroom} sbContext={sbContext} Notifications={Notifications} />)
         }
       </Box>
     </Box>

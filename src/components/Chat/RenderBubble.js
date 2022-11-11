@@ -7,18 +7,16 @@ const sbCrypto = new SB.SBCrypto();
 const RenderBubble = (props) => {
 
   const [isVerifiedGuest, setVerifiedGuest] = React.useState(false)
-  const [isMe, setIsMe] = React.useState(false)
   const [isAdmin, setIsAdmin] = React.useState(false)
   const [newProps, setNewProps] = React.useState({})
 
 
   React.useEffect(() => {
-    let current_user_key = JSON.parse(props.currentMessage.user._id);
+    let current_user_key = props.currentMessage.user._id !== 'system' ? JSON.parse(props.currentMessage.user._id) : {};
     const init = async () => {
       //TODO: this is breaking the server for some reason
       // const verified = await props.socket.api.postPubKey(current_user_key)
       setVerifiedGuest(true);
-      setIsMe(sbCrypto.compareKeys(current_user_key, props.socket.exportable_pubKey))
       setIsAdmin(sbCrypto.compareKeys(props.socket.exportable_owner_pubKey, current_user_key))
     }
     init();
@@ -127,7 +125,7 @@ const RenderBubble = (props) => {
         }
       })
     }
-  }, [isVerifiedGuest, isMe, isAdmin, props.currentMessage.encrypted, props.currentMessage.info, props.currentMessage._id])
+  }, [isVerifiedGuest, isAdmin, props.currentMessage.encrypted, props.currentMessage.info, props.currentMessage._id])
 
 
   const isSameDay = (currentMessage, diffMessage) => {

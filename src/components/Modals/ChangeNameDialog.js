@@ -2,22 +2,19 @@ import * as React from "react"
 import ResponsiveDialog from "../ResponsiveDialog";
 import { Grid, OutlinedInput } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
-import { useContext, useState, useEffect } from "react";
-import SnackabraContext from "../../contexts/SnackabraContext";
+import { useState, useEffect } from "react";
+import { observer } from "mobx-react"
+import sbContext from "../../stores/Snackabra.Store"
 
-export default function ChangeNameDialog(props) {
-  const sbContext = useContext(SnackabraContext)
+
+const ChangeNameDialog = observer((props) => {
 
   const [open, setOpen] = useState(props.open);
-  const [username, setUsername] = useState(props.open);
+  const [username, setUsername] = useState(sbContext.username);
 
   useEffect(() => {
     setOpen(props.open)
   }, [props.open])
-
-  useEffect(() => {
-    setUsername(sbContext.changeUsername?.name)
-  }, [sbContext.changeUsername?.name])
 
   const updateUsername = (e) => {
     setUsername(e.target.value)
@@ -25,27 +22,25 @@ export default function ChangeNameDialog(props) {
 
   const setMe = () => {
     setUsername('Me')
-    localStorage.setItem(sbContext.roomId + '_username', 'Me')
-    sbContext.saveUsername(username)
-    setOpen(false)
+    sbContext.username = username
+    props.onClose()
   }
 
-  const saveUserName = () =>{
-    localStorage.setItem(sbContext.roomId + '_username', username)
-    sbContext.saveUsername(username)
-    setOpen(false)
+  const saveUserName = () => {
+    sbContext.username = username
+    props.onClose()
   }
 
   return (
-    <ResponsiveDialog title={'Change Username'} open={open}>
+    <ResponsiveDialog title={'Change Username'} open={open} onClose={props.onClose}>
       <Grid container
-            direction="row"
-            justifyContent="space-between"
-            alignItems="flex-start">
-        <Grid item xs={12}>
+        direction="row"
+        justifyContent="space-between"
+        alignItems="flex-start">
+        <Grid item xs={12} sx={{ pb: 1 }}>
           <OutlinedInput placeholder="Please enter text"
-                         value={username}
-                         onChange={updateUsername} fullWidth />
+            value={username}
+            onChange={updateUsername} fullWidth />
         </Grid>
         <StyledButton variant={'outlined'} onClick={saveUserName}>Save</StyledButton>
         <StyledButton variant={'outlined'} onClick={setMe}>Me</StyledButton>
@@ -53,4 +48,6 @@ export default function ChangeNameDialog(props) {
     </ResponsiveDialog>
   )
 
-}
+})
+
+export default ChangeNameDialog

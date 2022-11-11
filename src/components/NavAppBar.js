@@ -1,14 +1,13 @@
 import * as React from 'react';
 import { useLocation } from "react-router-dom";
-import { AppBar, Avatar, Box, Button, Grid, Hidden, IconButton, } from "@mui/material";
+import { AppBar, Avatar, Box, Grid, Hidden, IconButton } from "@mui/material";
 import { AppBarTab, AppBarTabLink, AppBarTabs } from "../styles/AppBarTabs";
 import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded';
-import SnackabraContext from "../contexts/SnackabraContext";
 import WhisperUserDialog from "./Modals/WhisperUserDialog";
+import {observer} from "mobx-react"
+import sbContext from "../stores/Snackabra.Store"
 
-export default function NavAppBar() {
-
-  const sbContext = React.useContext(SnackabraContext)
+const NavAppBar = observer((props) => {
   const [value, setValue] = React.useState(0);
   const [openWhisper, setOpenWhisper] = React.useState(false);
   const location = useLocation();
@@ -72,7 +71,7 @@ export default function NavAppBar() {
             </AppBarTabs>
           </Grid>
           <Grid>
-            <Hidden xsUp={sbContext.showAdminTab}>
+            <Hidden xsUp={sbContext.admin}>
               <Avatar onClick={()=>{setOpenWhisper(true)}} sx={{ width: 48, height: 48, bgcolor: 'transparent' }}>
                 <IconButton color="inherit" component="span">
                   <AccountCircleRoundedIcon />
@@ -84,6 +83,6 @@ export default function NavAppBar() {
       </AppBar>
     </Box>
   );
-}
+})
 
-
+export default NavAppBar

@@ -14,18 +14,14 @@ class SnackabraStore {
   }
   channel;
   rooms = {};
-  motd = "";
   locked = false;
   isVerifiedGuest = false;
   roomMetadata = {};
-  showAdminTab = false;
   userName = 'Me';
   ownerRotation;
   ownerKey;
   roomCapacity = 20;
   messages = [];
-  roomOwner = false;
-  roomAdmin = false;
   keys = {}
   userKey = {};
   //might be more of a local state thing
@@ -42,15 +38,20 @@ class SnackabraStore {
     makeObservable(this, {
       createRoom: action,
       getOldMessages: action,
+      setRoom: action,
+      importRoom: action,
+      user: computed,
       username: computed,
       socket: computed,
+      admin: computed,
+      roomName: computed,
+      motd: computed,
+      activeroom: computed,
       loadingMore: observable,
       sbConfig: observable,
       roomMetadata: observable,
-      showAdminTab: observable,
       userName: observable,
       rooms: observable,
-      motd: observable,
       locked: observable,
       isVerifiedGuest: observable,
       ownerRotation: observable,
@@ -59,18 +60,15 @@ class SnackabraStore {
       replyTo: observable,
       replyEncryptionKey: observable,
       activeRoom: observable,
-      roomOwner: observable,
       keys: observable,
       userKey: observable,
       ownerKey: observable,
       joinRequests: observable,
-      roomAdmin: observable,
       contacts: observable,
       channel: observable
     })
 
-    onBecomeObserved(this, "roomMetadata", this.resume)
-    onBecomeUnobserved(this, "roomMetadata", this.suspend)
+    onBecomeUnobserved(this, "rooms", this.suspend)
   }
 
   resume = () => {
@@ -80,6 +78,7 @@ class SnackabraStore {
 
   suspend = () => {
     // This will be used later to offload the state of the room to a local store
+    this.save()
     console.log(`Suspending`, this)
 
   }
@@ -96,11 +95,19 @@ class SnackabraStore {
   }
 
   get socket() {
-    return toJS(this.channel);
+    return this.channel ? toJS(this.channel) : undefined;
   }
 
   set socket(channel) {
     this.channel = channel;
+  }
+
+  get owner() {
+    return this.socket ? this.socket.owner : false;
+  }
+
+  get admin() {
+    return this.socket ? this.socket.admin : false;
   }
 
   set activeroom(channelId) {
@@ -115,14 +122,29 @@ class SnackabraStore {
     return this.userName
   }
 
+  get roomName() {
+    return this.rooms[this.activeRoom]?.name ? this.rooms[this.activeRoom].name : 'Room ' + Math.floor(Object.keys(this.rooms).length + 1)
+  }
+
+  set roomName(name) {
+    this.rooms[this.activeRoom].name = name;
+    this.save();
+  }
+
+  get user() {
+    return this.socket ? { _id: JSON.stringify(this.socket.exportable_pubKey), name: this.socket.userName } : { _id: '', name: '' }
+
+  }
+
   set username(userName) {
     if (this.rooms[this.activeRoom]) this.rooms[this.activeRoom].userName = userName;
     this.userName = userName;
+    this.save()
   }
 
   receiveMessage = (m, messageCallback) => {
     m.user._id = JSON.stringify(m.user._id);
-    m.createdAt = new Date(parseInt(m.timestampPrefix,2));
+    m.createdAt = new Date(parseInt(m.timestampPrefix, 2));
     this.rooms[this.activeRoom].messages = [...toJS(this.rooms[this.activeRoom].messages), m]
     this.save()
     messageCallback(m)
@@ -156,11 +178,11 @@ class SnackabraStore {
 
   createRoom = (secret) => {
     return new Promise((resolve, reject) => {
+      this.SB = new SB.Snackabra(this.sbConfig);
       // create a new channel (room), returns (owner) key and channel name:
       this.SB.create(this.sbConfig, secret).then((handle) => {
         console.log(`you can (probably) connect here: localhost:3000/rooms/${handle.channelId}`)
         // connect to the websocket with our handle info:
-        console.log(handle)
         this.SB.connect(
           // must have a message handler:
           (m) => { this.receiveMessage(m) },
@@ -168,8 +190,7 @@ class SnackabraStore {
           handle.channelId // since we're owner this is optional
 
         ).then((c) => c.ready).then((c) => {
-          if(c){
-            console.log(c)
+          if (c) {
             this.socket = c;
             this.activeroom = handle.channelId
             this.socket.userName = 'Me'
@@ -181,10 +202,10 @@ class SnackabraStore {
               lastSeenMessage: 0,
               messages: []
             }
-  
+
             this.save();
           }
-          resolve('connected')
+          resolve(handle.channelId)
           // say hello to everybody! upon success it will return "success"
           // (new SBMessage(c, "Hello from TestBot!")).send().then((c) => { console.log(`test message sent! (${c})`) })
         }).catch((e) => {
@@ -193,6 +214,72 @@ class SnackabraStore {
       })
     })
 
+  }
+
+  importRoom = async (roomData) => {
+    console.log(roomData)
+    const channelId = roomData.roomId;
+    const key = JSON.parse(roomData.ownerKey);
+    try {
+      this.SB = new SB.Snackabra(this.sbConfig);
+      this.SB.connect(
+        console.log,
+        key,
+        channelId
+
+      ).then((c) => c.ready).then((c) => {
+        if (c) {
+          console.log(c)
+          this.socket = c;
+          this.activeroom = channelId
+          const roomData = this.rooms[channelId] ? this.rooms[channelId] : {
+            name: 'Room ' + Math.floor(Object.keys(this.rooms).length + 1),
+            id: channelId,
+            key: typeof key !== 'undefined' ? key : c.exportable_privateKey,
+            userName: 'Me',
+            lastSeenMessage: 0,
+            messages: []
+          }
+          this.setRoom(channelId, roomData)
+          this.key = typeof key !== 'undefined' ? key : c.exportable_privateKey
+          this.socket.userName = 'Me'
+          this.save();
+          window.location.reload()
+        }
+
+      }).catch((e) => {
+        console.error(e)
+      })
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+
+  get capacity() {
+    return this.socket ? this.socket.adminData.capacity : 20;
+  }
+
+  setRoomCapacity = (capacity) => {
+    this.socket.adminData.capacity = capacity;
+    return this.socket.api.updateCapacity(capacity)
+  }
+
+  get motd() {
+    return this.socket ? this.socket.motd : '';
+  }
+
+  set motd(motd) {
+    console.log(motd)
+  }
+
+  setMOTD = (motd) => {
+    return this.socket.api.setMOTD(motd)
+  }
+
+  // This isnt in the the jslib atm
+  lockRoom = () => {
+    return this.socket.api.lockRoom()
   }
 
   getExistingRoom = (channelId) => {
@@ -212,6 +299,10 @@ class SnackabraStore {
 
   }
 
+  setRoom = (channelId, roomData) => {
+    this.rooms[channelId] = roomData
+  }
+
   connect = async ({ roomId, username, messageCallback, key, secret }) => {
     return new Promise(async (resolve, reject) => {
       try {
@@ -221,7 +312,6 @@ class SnackabraStore {
           channel = await this.SB.create(this.sbConfig, secret)
         }
         key = key ? key : channel?.key;
-        console.log(key)
         channelId = roomId ? roomId : channel?.channelId;
         this.SB.connect(
           (m) => { this.receiveMessage(m, messageCallback) }, // must have a message handler:
@@ -229,11 +319,11 @@ class SnackabraStore {
           channelId // since we're owner this is optional
 
         ).then((c) => c.ready).then((c) => {
-          if(c){
+          if (c) {
             console.log(c)
             this.socket = c;
             this.activeroom = channelId
-            this.rooms[channelId] = {
+            const roomData = this.rooms[channelId] ? this.rooms[channelId] : {
               name: 'Room ' + Math.floor(Object.keys(this.rooms).length + 1),
               id: channelId,
               key: typeof key !== 'undefined' ? key : c.exportable_privateKey,
@@ -241,6 +331,7 @@ class SnackabraStore {
               lastSeenMessage: 0,
               messages: []
             }
+            this.setRoom(channelId, roomData)
             this.key = typeof key !== 'undefined' ? key : c.exportable_privateKey
             this.socket.userName = 'Me'
             this.save();

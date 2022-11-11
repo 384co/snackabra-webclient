@@ -283,7 +283,7 @@ export async function downloadRoomData(roomId, rooms) {
     }
     console.log("Imported decryption keys", decKey, room_lockedKey)
     let imageData = await getImageIds(dataJson, decKey, room_lockedKey);
-    imageData["target"] = "s4.privacy.app";
+    imageData["target"] = window.location.hostname;
     let imagedataString = JSON.stringify(imageData);
     const name = rooms[roomId]?.name ? rooms[roomId]?.name : 'Snackabra';
     downloadFile(imagedataString, name + "_storage.txt")

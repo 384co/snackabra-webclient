@@ -2,12 +2,12 @@ import * as React from "react"
 import ResponsiveDialog from "../ResponsiveDialog";
 import { Grid, TextField, Typography } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
-import { useContext, useState,useEffect } from "react";
-import SnackabraContext from "../../contexts/SnackabraContext";
+import { useState, useEffect } from "react";
 import { Trans } from "@lingui/macro";
+import { observer } from "mobx-react"
+import sbContext from "../../stores/Snackabra.Store"
 
-export default function MotdDialog(props) {
-  const sbContext = useContext(SnackabraContext)
+const MotdDialog = observer((props) => {
 
   const [open, setOpen] = useState(props.open);
   const [text, setText] = useState('');
@@ -28,19 +28,19 @@ export default function MotdDialog(props) {
 
   return (
     <ResponsiveDialog
-      title={typeof props.roomName === 'string' ? props.roomName : 'MotdDialog'}
+      title={typeof sbContext.roomName === 'string' ? sbContext.roomName : 'MotdDialog'}
       open={open}>
       <Grid container
-            direction="row"
-            justifyContent="flex-start"
-            alignItems="flex-start">
+        direction="row"
+        justifyContent="flex-start"
+        alignItems="flex-start">
         <Grid item xs={12}>
           <Typography variant={'body1'}>
             {sbContext.motd !== '' &&
               <Trans id='motd text'>Message of the day: {sbContext.motd}</Trans>}
           </Typography>
         </Grid>
-        {!sbContext.room_owner ?
+        {!sbContext.owner ?
           <>
             <TextField
               id="whisper-text"
@@ -60,5 +60,6 @@ export default function MotdDialog(props) {
     </ResponsiveDialog>
   )
 
-}
+})
 
+export default MotdDialog
