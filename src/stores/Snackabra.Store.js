@@ -21,7 +21,6 @@ class SnackabraStore {
   ownerRotation;
   ownerKey;
   roomCapacity = 20;
-  messages = [];
   keys = {}
   userKey = {};
   //might be more of a local state thing
@@ -31,7 +30,6 @@ class SnackabraStore {
   replyEncryptionKey = {}
   activeRoom;
   joinRequests = {};
-  contacts = {};
   SB = new SB.Snackabra(this.sbConfig)
 
   constructor() {
@@ -47,6 +45,8 @@ class SnackabraStore {
       roomName: computed,
       motd: computed,
       activeroom: computed,
+      messages: computed,
+      contacts: computed,
       loadingMore: observable,
       sbConfig: observable,
       roomMetadata: observable,
@@ -56,7 +56,6 @@ class SnackabraStore {
       isVerifiedGuest: observable,
       ownerRotation: observable,
       roomCapacity: observable,
-      messages: observable,
       replyTo: observable,
       replyEncryptionKey: observable,
       activeRoom: observable,
@@ -64,7 +63,6 @@ class SnackabraStore {
       userKey: observable,
       ownerKey: observable,
       joinRequests: observable,
-      contacts: observable,
       channel: observable
     })
 
@@ -137,13 +135,44 @@ class SnackabraStore {
   }
 
   set username(userName) {
-    if (this.rooms[this.activeRoom]) this.rooms[this.activeRoom].userName = userName;
-    this.userName = userName;
-    this.save()
+    if (this.rooms[this.activeRoom]) {
+      this.rooms[this.activeRoom].userName = userName;
+      const user_pubKey = this.user._id
+      this.rooms[this.activeRoom].contacts[user_pubKey.x + ' ' + user_pubKey.y] = userName;
+      this.userName = userName;
+      this.save()
+    }
+
+  }
+
+
+  set contacts(contacts) {
+    if (this.rooms[this.activeRoom]) {
+      this.rooms[this.activeRoom].contacts = contacts;
+      this.save()
+    }
+  }
+
+  get contacts() {
+    return toJS(this.rooms[this.activeRoom].contacts)
+  }
+
+  get messages() {
+    return toJS(this.rooms[this.activeRoom].messages)
+  }
+
+  set messages(messages) {
+    if (this.rooms[this.activeRoom]) {
+      this.rooms[this.activeRoom].messages = messages;
+      this.save()
+    }
   }
 
   receiveMessage = (m, messageCallback) => {
+    const user_pubKey = m.user._id;
     m.user._id = JSON.stringify(m.user._id);
+    m.user.name = this.contacts[user_pubKey.x + ' ' + user_pubKey.y] !== undefined ? this.contacts[user_pubKey.x + ' ' + user_pubKey.y] : m.user.name;
+    m.sender_username = m.user.name;
     m.createdAt = new Date(parseInt(m.timestampPrefix, 2));
     this.rooms[this.activeRoom].messages = [...toJS(this.rooms[this.activeRoom].messages), m]
     this.save()
@@ -200,6 +229,7 @@ class SnackabraStore {
               key: handle.key,
               userName: 'Me',
               lastSeenMessage: 0,
+              contacts: {},
               messages: []
             }
 
@@ -237,6 +267,7 @@ class SnackabraStore {
             id: channelId,
             key: typeof key !== 'undefined' ? key : c.exportable_privateKey,
             userName: 'Me',
+            contacts: {},
             lastSeenMessage: 0,
             messages: []
           }
@@ -320,7 +351,6 @@ class SnackabraStore {
 
         ).then((c) => c.ready).then((c) => {
           if (c) {
-            console.log(c)
             this.socket = c;
             this.activeroom = channelId
             const roomData = this.rooms[channelId] ? this.rooms[channelId] : {
@@ -329,11 +359,12 @@ class SnackabraStore {
               key: typeof key !== 'undefined' ? key : c.exportable_privateKey,
               userName: username !== '' && typeof username !== 'undefined' ? username : '',
               lastSeenMessage: 0,
+              contacts: {},
               messages: []
             }
             this.setRoom(channelId, roomData)
             this.key = typeof key !== 'undefined' ? key : c.exportable_privateKey
-            this.socket.userName = 'Me'
+            this.socket.userName = roomData.userName
             this.save();
           }
 

@@ -8,6 +8,7 @@ const RenderBubble = (props) => {
 
   const [isVerifiedGuest, setVerifiedGuest] = React.useState(false)
   const [isAdmin, setIsAdmin] = React.useState(false)
+  const [isMe, setMe] = React.useState(false)
   const [newProps, setNewProps] = React.useState({})
 
 
@@ -18,6 +19,7 @@ const RenderBubble = (props) => {
       // const verified = await props.socket.api.postPubKey(current_user_key)
       setVerifiedGuest(true);
       setIsAdmin(sbCrypto.compareKeys(props.socket.exportable_owner_pubKey, current_user_key))
+      setMe(sbCrypto.compareKeys(props.socket.exportable_pubKey, current_user_key))
     }
     init();
   }, [props.currentMessage.user._id, props.socket.api, props.socket.exportable_owner_pubKey, props.socket.exportable_pubKey])
@@ -144,10 +146,13 @@ const RenderBubble = (props) => {
       currentMessage.user &&
       diffMessage.user._id === currentMessage.user._id);
   }
-
+  if (isMe && props.currentMessage.sender_username === 'Unnamed') {
+    props.currentMessage.user.name = 'Me'
+    console.log('here')
+  }
   return (
-    <Grid style={{ width: '90%' }}>
-      {(isSameUser(props.currentMessage, props.previousMessage) && isSameDay(props.currentMessage, props.previousMessage)) || props.socket.admin
+    <Grid style={{ width: '50%' }}>
+      {(isSameUser(props.currentMessage, props.previousMessage) && isSameDay(props.currentMessage, props.previousMessage))
         ? ''
         : <Typography variant={'body1'} style={{
           width: '50vw',
@@ -157,7 +162,7 @@ const RenderBubble = (props) => {
           backgroundColor: 'transparent',
           color: props.currentMessage.whispered || props.position === 'left' ? '#aaa' : 'white'
         }}>
-          {typeof props.currentMessage.user.name === 'string' ? props.currentMessage.user.name : ''}
+          {props.currentMessage.user.name}
         </Typography>}
       <Bubble
         textStyle={{

@@ -1,11 +1,12 @@
 import React from 'react'
-import { Divider,Grid, CircularProgress, Paper, IconButton } from "@mui/material";
+import { Grid, CircularProgress, Paper, IconButton, LinearProgress } from "@mui/material";
 import CloseIcon from '@mui/icons-material/Close';
 
 const RenderChatFooter = (props) => {
 
   const [files, setFiles] = React.useState([])
   const [loading, setLoading] = React.useState(props.loading)
+  const [uploading, setUploading] = React.useState(props.uploading)
 
   React.useEffect(() => {
     setFiles(props.files)
@@ -15,16 +16,32 @@ const RenderChatFooter = (props) => {
     setLoading(props.loading)
   }, [props.loading])
 
+  React.useEffect(() => {
+    setUploading(props.uploading)
+  }, [props.uploading])
+
   if (loading) {
     return (
       <Grid sx={{ width: '100%', minHeight: "50px" }}
-            direction="row"
-            justifyContent="center"
-            alignItems="center"
-            container>
+        direction="row"
+        justifyContent="center"
+        alignItems="center"
+        container>
         <Grid item>
           <CircularProgress color="inherit" />
         </Grid>
+      </Grid>
+    );
+  }
+
+  if (uploading) {
+    return (
+      <Grid sx={{ width: '100%', minHeight: "15px" }}
+        direction="row"
+        justifyContent="center"
+        alignItems="center"
+        container>
+        <LinearProgress sx={{ width: '100%' }} color="success" />
       </Grid>
     );
   }
@@ -44,10 +61,10 @@ const RenderChatFooter = (props) => {
             {files.map((file, index) => {
               return (
                 <img key={index} id='previewImage'
-                     width='150px'
-                     style={{ padding: 8 }}
-                     src={file.restrictedUrl}
-                     alt='Image preview' />
+                  width='150px'
+                  style={{ padding: 8 }}
+                  src={file.restrictedUrl}
+                  alt='Image preview' />
               )
             })
 
@@ -60,7 +77,13 @@ const RenderChatFooter = (props) => {
         </Paper>
       </Grid>)
   }
-  return null;
+  return (
+    <Grid sx={{ width: '100%', minHeight: "5px" }}
+      direction="row"
+      justifyContent="center"
+      alignItems="center"
+      container />
+  );
 }
 
 export default RenderChatFooter

@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { useLocation } from "react-router-dom";
-import { AppBar, Avatar, Box, Grid, Hidden, IconButton } from "@mui/material";
+import { AppBar, Avatar, Box, Grid, Hidden, IconButton, Typography } from "@mui/material";
 import { AppBarTab, AppBarTabLink, AppBarTabs } from "../styles/AppBarTabs";
 import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded';
 import WhisperUserDialog from "./Modals/WhisperUserDialog";
-import {observer} from "mobx-react"
+import { observer } from "mobx-react"
 import sbContext from "../stores/Snackabra.Store"
 
 const NavAppBar = observer((props) => {
@@ -16,7 +16,7 @@ const NavAppBar = observer((props) => {
     setValue(newValue);
   };
 
-  const closeWhisper = () =>{
+  const closeWhisper = () => {
     setOpenWhisper(false)
   }
 
@@ -43,7 +43,7 @@ const NavAppBar = observer((props) => {
           container
           justifyContent="space-between"
         >
-          <Grid>
+          <Grid item>
             <AppBarTabs
               value={value}
               onChange={handleChange}
@@ -70,14 +70,24 @@ const NavAppBar = observer((props) => {
               </AppBarTabLink>
             </AppBarTabs>
           </Grid>
-          <Grid>
-            <Hidden xsUp={sbContext.admin}>
-              <Avatar onClick={()=>{setOpenWhisper(true)}} sx={{ width: 48, height: 48, bgcolor: 'transparent' }}>
-                <IconButton color="inherit" component="span">
-                  <AccountCircleRoundedIcon />
-                </IconButton>
-              </Avatar>
-            </Hidden>
+          <Grid item>
+            <Grid
+              container
+              direction="row"
+              justifyContent="center"
+              alignItems="center"
+            >
+              <Grid item>
+                <Typography variant='body2'>v{process.env.REACT_APP_CLIENT_VERSION}</Typography>
+              </Grid>
+              <Hidden xsUp={sbContext.admin}>
+                <Avatar onClick={() => { setOpenWhisper(true) }} sx={{ width: 48, height: 48, bgcolor: 'transparent' }}>
+                  <IconButton color="inherit" component="span">
+                    <AccountCircleRoundedIcon />
+                  </IconButton>
+                </Avatar>
+              </Hidden>
+            </Grid>
           </Grid>
         </Grid>
       </AppBar>

@@ -25,6 +25,7 @@ class ChatRoom extends React.Component {
     openPreview: false,
     openChangeName: false,
     openFirstVisit: false,
+    changeUserNameProps: {},
     openMotd: false,
     anchorEl: null,
     img: '',
@@ -34,6 +35,7 @@ class ChatRoom extends React.Component {
     roomId: this.props.roomId || 'offline',
     files: [],
     loading: false,
+    uploading: false,
     user: {},
     height: 0,
   }
@@ -62,42 +64,47 @@ class ChatRoom extends React.Component {
     const room = this.sbContext.getExistingRoom(this.props.roomId)
     const options = {
       roomId: this.props.roomId,
-      username: 'Me',
+      username: username ? username : 'Unnamed',
       key: room?.key ? room?.key : null,
       secret: null,
       messageCallback: this.recieveMessages
     }
-    // this.setState({ messages: this.sbContext.getMessages(this.props.roomId) })
-    this.props.sbContext.connect(options).then(() => {
-      this.props.sbContext.getOldMessages(0).then((r) => {
-        let controlMessages = [];
-        let messages  = [];
-        r.forEach((m, i)=>{
-          if(!m.control){
-            m.user._id = JSON.stringify(m.user._id);
-            m.createdAt = new Date(parseInt(m.timestampPrefix, 2));
-            messages.push(m)
-          }else{
-            controlMessages.push(m)
+    this.sbContext.connect(options).then(() => {
+      this.setState({ messages: this.sbContext.messages }, () => {
+        this.sbContext.getOldMessages(0).then((r) => {
+          let controlMessages = [];
+          let messages = [];
+          r.forEach((m, i) => {
+            if (!m.control) {
+              const user_pubKey = m.user._id;
+              m.user._id = JSON.stringify(m.user._id);
+              m.user.name = this.sbContext.contacts[user_pubKey.x + ' ' + user_pubKey.y] !== undefined ? this.sbContext.contacts[user_pubKey.x + ' ' + user_pubKey.y] : m.user.name;
+              m.sender_username = m.user.name;
+              m.createdAt = new Date(parseInt(m.timestampPrefix, 2));
+              messages.push(m)
+            } else {
+              controlMessages.push(m)
+            }
+
+          })
+          this.setState({ controlMessages: controlMessages })
+          if (this.sbContext.motd !== '') {
+            this.sendSystemInfo('MOTD: ' + this.props.sbContext.motd, (systemMessage) => {
+              this.sbContext.messages = messages
+              this.setState({ messages: [...messages, systemMessage] })
+            })
+          } else {
+            this.sbContext.messages = messages
+            this.setState({ messages: [...messages] })
           }
 
         })
-        this.setState({controlMessages: controlMessages})
-        if (this.props.sbContext.motd !== '') {
-          this.sendSystemInfo('MOTD: ' + this.props.sbContext.motd, () => {
-            this.setState({ messages: [...this.state.messages, ...messages] })
-          })
-        } else {
-          this.setState({ messages: [...messages] })
-        }
-
       })
     })
   }
 
   recieveMessages = (msg) => {
     if (msg) {
-      console.log(msg)
       if (!msg.control) {
         const messages = this.state.messages.reduce((acc, curr) => {
           if (!this.sending.hasOwnProperty(curr._id)) {
@@ -144,8 +151,8 @@ class ChatRoom extends React.Component {
     this.setState({ openPreview: false, img: '', imgLoaded: false })
   }
 
-  promptUsername = () => {
-    this.setState({ openChangeName: true })
+  promptUsername = (context) => {
+    this.setState({ openChangeName: true, changeUserNameProps: context })
   }
 
 
@@ -167,6 +174,7 @@ class ChatRoom extends React.Component {
   }
   //TODO: for images render in chat and then replace with received message
   sendFiles = (giftedMessage) => {
+    this.setState({ uploading: true })
     const fileMessages = [];
     const arrayBufferPromises = [];
     this.state.files.forEach(async (file, i) => {
@@ -213,6 +221,7 @@ class ChatRoom extends React.Component {
             })
           }).finally(() => {
             if (i === arrayBufferPromises.length - 1) {
+              this.setState({ uploading: false })
               this.removeInputFiles()
             }
           })
@@ -222,7 +231,6 @@ class ChatRoom extends React.Component {
 
     })
   }
-
 
   sendMessages = async (giftedMessage) => {
     if (giftedMessage[0].text === "") {
@@ -243,18 +251,19 @@ class ChatRoom extends React.Component {
   }
 
   sendSystemInfo = (msg_string, callback) => {
+    const systemMessage = {
+      _id: this.state.messages.length,
+      text: msg_string,
+      user: { _id: 'system', name: 'System Message' },
+      whispered: false,
+      verified: true,
+      info: true
+    }
     this.setState({
-      messages: [...this.state.messages, {
-        _id: this.state.messages.length,
-        text: msg_string,
-        user: { _id: 'system', name: 'System Message' },
-        whispered: false,
-        verified: true,
-        info: true
-      }]
+      messages: [...this.state.messages, systemMessage]
     }, () => {
       if (callback) {
-        callback()
+        callback(systemMessage)
       }
     })
   }
@@ -290,6 +299,32 @@ class ChatRoom extends React.Component {
     this.setState({ loading: false })
   }
 
+  saveUsername = (newUsername, _id) => {
+    if (_id === this.sbContext.user._id) {
+      console.log('its me!!!')
+      this.sbContext.username = newUsername;
+    }
+    const contacts = this.sbContext.contacts
+    const user_pubKey = JSON.parse(_id);
+    contacts[user_pubKey.x + ' ' + user_pubKey.y] = newUsername;
+    this.sbContext.contacts = contacts;
+    const _messages = this.state.messages.map((message) => {
+      if (message.user._id === _id) {
+        message.user.name = newUsername;
+        message.sender_username = newUsername;
+      }
+      return message;
+    });
+    this.setState({ messages: [] }, () => {
+      this.setState({ messages: _messages, changeUserNameProps: {} })
+      this.sbContext.messages = _messages;
+    });
+    // setTimeout(()=>{
+    //   window.location.reload()
+    // }, 1000)
+    
+  }
+
   render() {
     const attachMenu = Boolean(this.state.anchorEl);
     return (
@@ -301,7 +336,8 @@ class ChatRoom extends React.Component {
       }}>
         <ImageOverlay open={this.state.openPreview} img={this.state.img} imgLoaded={this.state.imgLoaded}
           onClose={this.imageOverlayClosed} />
-        <ChangeNameDialog open={this.state.openChangeName} onClose={() => {
+        <ChangeNameDialog {...this.state.changeUserNameProps} open={this.state.openChangeName} onClose={(userName, _id) => {
+          this.saveUsername(userName, _id)
           this.setState({ openChangeName: false })
         }} />
         <MotdDialog open={this.state.openMotd} roomName={this.props.roomName} />
@@ -341,6 +377,7 @@ class ChatRoom extends React.Component {
           renderChatFooter={() => {
             return <RenderChatFooter removeInputFiles={this.removeInputFiles}
               files={this.state.files}
+              uploading={this.state.uploading}
               loading={this.state.loading} />
           }}
           renderBubble={(props) => {

@@ -10,7 +10,9 @@ import sbContext from  './stores/Snackabra.Store'
 const container = document.getElementById('root');
 const root = createRoot(container);
 
-
+document.addEventListener('touchmove', function (event) {
+  if (event.scale !== 1) { event.preventDefault(); }
+}, { passive: false });
 
 document.addEventListener("localKvReady", async (e) => {
   sbContext.init().then(()=>{

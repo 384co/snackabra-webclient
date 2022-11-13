@@ -42,7 +42,7 @@ function RenderComposer(props) {
     <textarea placeholder="Type a message..." autoCapitalize="sentences" autoComplete="on" autoCorrect="on" dir="auto"
               value={text}
               rows="1" spellCheck="true" aria-label="Type a message..."
-              className="css-textinput-11aywtz r-placeholderTextColor-6taxm2 r-flex-13awgt0 r-fontSize-ubezar r-lineHeight-1cwl3u0 r-marginBottom-15zivkp r-marginLeft-1n0xq6e r-marginTop-kc8jnq r-paddingLeft-m2pi6t r-paddingTop-13gvty3"
+              className="textinput-composer"
               data-testid="Type a message..."
               onKeyUp={checkForSend}
               onChange={handlChange}

@@ -8,13 +8,17 @@ import sbContext from "../../stores/Snackabra.Store"
 
 
 const ChangeNameDialog = observer((props) => {
-
+  console.log(props)
   const [open, setOpen] = useState(props.open);
-  const [username, setUsername] = useState(sbContext.username);
+  const [username, setUsername] = useState(props.name);
 
   useEffect(() => {
     setOpen(props.open)
   }, [props.open])
+
+  useEffect(() => {
+    setUsername(props.name)
+  }, [props.name])
 
   const updateUsername = (e) => {
     setUsername(e.target.value)
@@ -27,8 +31,7 @@ const ChangeNameDialog = observer((props) => {
   }
 
   const saveUserName = () => {
-    sbContext.username = username
-    props.onClose()
+    props.onClose(username, props._id)
   }
 
   return (
