@@ -154,11 +154,17 @@ class SnackabraStore {
   }
 
   get contacts() {
-    return toJS(this.rooms[this.activeRoom].contacts)
+    if (this.rooms[this.activeRoom]) {
+      return this.rooms[this.activeRoom].contacts ? toJS(this.rooms[this.activeRoom].contacts) : {}
+    }
+    return {}
   }
 
   get messages() {
-    return toJS(this.rooms[this.activeRoom].messages)
+    if (this.rooms[this.activeRoom]) {
+      return this.rooms[this.activeRoom].messages ? toJS(this.rooms[this.activeRoom].messages) : []
+    }
+    return []
   }
 
   set messages(messages) {
