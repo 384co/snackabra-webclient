@@ -69,10 +69,4 @@ self.addEventListener('message', (event) => {
   }
 });
 
-self.addEventListener('statechange', e => {
-  if (e.target.state === 'activated') {
-    window.location.reload();
-  }
-});
-
 // Any other custom service worker logic can go here.

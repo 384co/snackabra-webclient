@@ -3,7 +3,7 @@ import { Trans } from "@lingui/macro";
 import { FormControl, Grid, IconButton, InputAdornment, InputLabel, OutlinedInput, TextField, Typography } from "@mui/material";
 import DownloadIcon from '@mui/icons-material/Download';
 import { StyledButton } from "../../styles/Buttons";
-import { useState, useContext } from "react"
+import { useState } from "react"
 import * as utils from '../../utils/utils';
 import {observer} from "mobx-react"
 import sbContext from "../../stores/Snackabra.Store"

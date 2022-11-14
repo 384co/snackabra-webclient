@@ -87,12 +87,6 @@ function registerValidSW(swUrl, config) {
                 config.onSuccess(registration);
               }
             }
-            if (config && config.onLoad) {
-              config.onLoad(registration);
-            }
-          }
-          if (installingWorker.state === 'activated') {
-            window.location.reload();
           }
         };
       };

@@ -4,6 +4,7 @@ import React from 'react';
 import './index.css';
 import App from './App';
 import { createRoot } from 'react-dom/client';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import IndexedKV from "./utils/IndexedKV";
 import sbContext from  './stores/Snackabra.Store'
 
@@ -30,4 +31,8 @@ Object.defineProperty(document, 'cacheDb', {
 
 
 
+if(process.env.NODE_ENV === 'production'){
+  console.log(process.env.NODE_ENV + ' registering service worker')
+  serviceWorkerRegistration.register();
+}
 

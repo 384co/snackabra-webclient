@@ -49,6 +49,7 @@ class ChatRoom extends React.Component {
     }
 
     window.addEventListener('resize', handleResize)
+    window.addEventListener('orientationchange', handleResize)
     handleResize();
 
 

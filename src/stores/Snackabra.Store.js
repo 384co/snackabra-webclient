@@ -1,4 +1,4 @@
-import { makeObservable, observable, action, computed, onBecomeObserved, onBecomeUnobserved, configure, toJS } from "mobx"
+import { makeObservable, observable, action, computed, onBecomeUnobserved, configure, toJS } from "mobx"
 const SB = require('snackabra')
 
 configure({

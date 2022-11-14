@@ -10,9 +10,10 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import AddCommentIcon from '@mui/icons-material/AddComment';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
+import AddCircleOutlinedIcon from '@mui/icons-material/AddCircleOutlined';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import InputAdornment from '@mui/material/InputAdornment';
+import CloseIcon from '@mui/icons-material/Close';
 import Toolbar from '@mui/material/Toolbar';
 import { useContext } from "react";
 import ImportDialog from "../components/Modals/ImportDialog";
@@ -20,19 +21,18 @@ import { useParams } from "react-router-dom";
 import { Grid, Hidden, IconButton, TextField, Typography } from "@mui/material";
 import ChatRoom from "../components/Chat/ChatRoom";
 import CreateRoomDialog from "../components/Modals/CreateRoomDialog";
+import JoinDialog from "../components/Modals/JoinDialog";
 import AdminDialog from "../components/Modals/AdminDialog";
 import { downloadRoomData } from "../utils/utils";
 import Fab from '@mui/material/Fab';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import NotificationContext from "../contexts/NotificationContext";
+import RoomMenu from "../components/Rooms/RoomMenu"
 import { observer } from "mobx-react"
 import sbContext from "../stores/Snackabra.Store"
 
 
 const drawerWidth = 240;
-
-const page = window.location;
-
 
 const ResponsiveDrawer = observer((props) => {
 
@@ -43,6 +43,7 @@ const ResponsiveDrawer = observer((props) => {
   const [openImportDialog, setOpenImportDialog] = React.useState(false);
   const [openCreateDialog, setOpenCreateDialog] = React.useState(false);
   const [openAdminDialog, setOpenAdminDialog] = React.useState(false);
+  const [openJoinDialog, setOpenJoinDialog] = React.useState(false);
   const [editingRoomId, setEditingRoomId] = React.useState(false);
   const [updatedName, setUpdatedName] = React.useState(false);
 
@@ -56,11 +57,14 @@ const ResponsiveDrawer = observer((props) => {
 
   const editRoom = (roomId) => {
     setEditingRoomId(roomId)
+    setTimeout(() => {
+      console.log(roomId)
+      document.getElementById(roomId).focus()
+    }, 250);
   }
 
   const submitName = (e) => {
     if (e.keyCode === 13) {
-
       sbContext.roomName = updatedName
       setEditingRoomId(false)
     }
@@ -75,6 +79,16 @@ const ResponsiveDrawer = observer((props) => {
       <Toolbar />
       <Divider />
       <List>
+        <ListItem disablePadding>
+          <ListItemButton onClick={() => {
+            setOpenJoinDialog(true)
+          }}>
+            <ListItemIcon>
+              <AddCircleOutlinedIcon />
+            </ListItemIcon>
+            <ListItemText primary={'Join a room'} />
+          </ListItemButton>
+        </ListItem>
         <ListItem disablePadding>
           <ListItemButton onClick={() => {
             setOpenCreateDialog(true)
@@ -125,28 +139,43 @@ const ResponsiveDrawer = observer((props) => {
                       <a href={`/rooms/${room}`}>
                         <ListItemText primary={roomName} />
                       </a> :
-                      <TextField value={updatedName}
+                      <TextField
+                        id={editingRoomId}
+                        value={updatedName}
                         onKeyDown={submitName}
                         onFocus={() => {
-                          setUpdatedName(roomName)
+                          setUpdatedName('')
                         }}
                         onChange={updateName}
                         variant="standard"
-                        focused
+                        autoComplete="false"
+                        InputProps={{
+                          endAdornment:
+                            <InputAdornment position="end">
+                              <IconButton
+                                aria-label="cancel room rename"
+                                onClick={() => { setEditingRoomId(false) }}
+                                onMouseDown={() => { setEditingRoomId(false) }}
+                                edge="end"
+                              >
+                                <CloseIcon sx={{ color: "#fff" }} />
+                              </IconButton>
+                            </InputAdornment>
+                        }}
                         autoFocus />
                     }
                   </Grid>
                   <Grid xs={5} item>
-                    <IconButton onClick={() => {
-                      editRoom(room)
-                    }}>
-                      <EditOutlinedIcon sx={{ cursor: 'pointer', color: color }} />
-                    </IconButton>
-                    <IconButton onClick={() => {
-                      getRoomData(room)
-                    }}>
-                      <FileDownloadOutlinedIcon sx={{ cursor: 'pointer', color: color }} />
-                    </IconButton>
+                    <RoomMenu
+                      selected={room === room_id}
+                      roomId={room}
+                      editRoom={() => {
+                        editRoom(room)
+                      }}
+                      getRoomData={() => {
+                        getRoomData(room)
+                      }}
+                    />
                   </Grid>
                 </Grid>
               </ListItemButton>
@@ -171,6 +200,9 @@ const ResponsiveDrawer = observer((props) => {
       }} />
       <AdminDialog open={openAdminDialog} onClose={() => {
         setOpenAdminDialog(false)
+      }} />
+      <JoinDialog open={openJoinDialog} onClose={() => {
+        setOpenJoinDialog(false)
       }} />
       <Box
         component="nav"
@@ -219,7 +251,7 @@ const ResponsiveDrawer = observer((props) => {
           <Typography variant={'h6'}>Select a room or create a new one to get started.</Typography>
         </Grid>)
         }
-        {(room_id || sbContext.activeroom) &&
+        {(room_id && sbContext.activeroom) &&
           (<ChatRoom roomId={room_id ? room_id : sbContext.activeroom} sbContext={sbContext} Notifications={Notifications} />)
         }
       </Box>

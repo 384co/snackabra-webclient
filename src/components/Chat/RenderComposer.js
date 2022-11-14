@@ -24,7 +24,7 @@ function RenderComposer(props) {
       setText('')
       props.onTextChanged('')
     }
-  }, [props.filesAttached])
+  }, [props])
 
   const checkForSend = (e) => {
     if (e.keyCode === 13 && !e.ctrlKey && !e.shiftKey) {

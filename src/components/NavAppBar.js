@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useLocation } from "react-router-dom";
-import { AppBar, Avatar, Box, Grid, Hidden, IconButton, Typography } from "@mui/material";
+import { AppBar, Avatar, Box, Grid, IconButton, Typography } from "@mui/material";
 import { AppBarTab, AppBarTabLink, AppBarTabs } from "../styles/AppBarTabs";
 import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded';
 import WhisperUserDialog from "./Modals/WhisperUserDialog";
@@ -80,13 +80,15 @@ const NavAppBar = observer((props) => {
               <Grid item>
                 <Typography variant='body2'>v{process.env.REACT_APP_CLIENT_VERSION}</Typography>
               </Grid>
-              <Hidden xsUp={sbContext.admin}>
+              {!sbContext.admin && sbContext.activeRoom !== "" ?
                 <Avatar onClick={() => { setOpenWhisper(true) }} sx={{ width: 48, height: 48, bgcolor: 'transparent' }}>
                   <IconButton color="inherit" component="span">
                     <AccountCircleRoundedIcon />
                   </IconButton>
                 </Avatar>
-              </Hidden>
+                :
+                <Avatar sx={{ width: 48, height: 48, bgcolor: 'transparent', color: "#000" }}/>
+              }
             </Grid>
           </Grid>
         </Grid>

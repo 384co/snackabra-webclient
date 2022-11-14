@@ -8,7 +8,6 @@ import sbContext from "../../stores/Snackabra.Store"
 
 
 const ChangeNameDialog = observer((props) => {
-  console.log(props)
   const [open, setOpen] = useState(props.open);
   const [username, setUsername] = useState(props.name);
 
