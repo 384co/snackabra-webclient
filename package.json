@@ -10,7 +10,7 @@
   "private": false,
   "scripts": {
     "start": "react-app-rewired start",
-    "build": "rm -rf ./build && react-app-rewired build",
+    "build": "react-app-rewired build",
     "test": "react-app-rewired test --env=jsdom",
     "extract": "lingui extract",
     "compile": "lingui compile"
@@ -52,7 +52,7 @@
     "react-native-web": "0.18.1",
     "react-router-dom": "^6.3.0",
     "react-scripts": "^5.0.1",
-    "snackabra": "0.4.23",
+    "snackabra": "^0.4.25",
     "styled-components": "^5.3.5",
     "workbox-background-sync": "^6.5.3",
     "workbox-broadcast-update": "^6.5.3",
