@@ -218,9 +218,11 @@ class ChatRoom extends React.Component {
             sbm.contents.id = o[1].id;
             sbm.contents.verificationToken = await o[1].verification
             sbm.contents.control = true;
-            sbm.setImageMetadata(imageMetadata).then(() => {
-              sbm.send();
-            })
+            sbm.contents.imageMetaData = imageMetadata; // psm should work
+            sbm.send();
+            // sbm.setImageMetadata(imageMetadata).then(() => {
+            //   sbm.send();
+            // })
           }).finally(() => {
             if (i === arrayBufferPromises.length - 1) {
               this.setState({ uploading: false })
