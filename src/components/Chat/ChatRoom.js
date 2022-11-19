@@ -133,7 +133,7 @@ class ChatRoom extends React.Component {
     this.setState({ img: message.image, openPreview: true })
     try {
       console.log(message)
-      this.sbContext.SB.storage.retrieveDataFromMessage(message, this.state.messages).then((data) => {
+      this.sbContext.SB.storage.retrieveDataFromMessage(message, this.state.controlMessages).then((data) => {
         console.log(data)
         if (data.hasOwnProperty('error')) {
           //activeChatContext.sendSystemMessage('Could not open image: ' + data['error']);
@@ -200,6 +200,7 @@ class ChatRoom extends React.Component {
 
     Promise.all(arrayBufferPromises).then((a) => {
       a.forEach((ab, i) => {
+        // mtg: We are sending the message here missing the id of the image, I think we can use the signature 
         let sbm = new SB.SBMessage(this.sbContext.socket, '', this.state.files[i].restrictedUrl)
         sbm.send().then(() => {
           Promise.all([
@@ -214,8 +215,8 @@ class ChatRoom extends React.Component {
               previewId: o[1].id,
               previewKey: o[1].key,
             }
-            sbm.contents.id = o[0].id;
-            sbm.contents.verificationToken = await o[0].verification
+            sbm.contents.id = o[1].id;
+            sbm.contents.verificationToken = await o[1].verification
             sbm.contents.control = true;
             sbm.setImageMetadata(imageMetadata).then(() => {
               sbm.send();
@@ -325,8 +326,9 @@ class ChatRoom extends React.Component {
     // }, 1000)
     
   }
-
+  
   render() {
+    console.log(this.sbContext.socket)
     const attachMenu = Boolean(this.state.anchorEl);
     return (
 

@@ -167,6 +167,7 @@ const ResponsiveDrawer = observer((props) => {
                   </Grid>
                   <Grid xs={5} item>
                     <RoomMenu
+                      socket={sbContext.socket}
                       selected={room === room_id}
                       roomId={room}
                       editRoom={() => {

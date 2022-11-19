@@ -1,23 +1,63 @@
 // #########################    FUNCTIONS TO HANDLE ALL IMAGE PROCESSING   ###########################################
+// ##
+// ## PLEASE NOTE: as of today (20221020) moving this to snackabra.ts in the 0.5 ('typescript') branch
+// ##              ... and starting to clean up as a TS set of utils
 
+// TODO - can be optimized (asynchronized more) to return the hashes once calculated
+// and then do all the encryption stuff.
 
-// TODO - can be optimized (asynchronized more) to return the hashes once calculated and then do all the encryption stuff.
 import * as utils from "./utils";
 import config from "../config";
 import { encrypt, getImageKey } from "./crypto";
 import { decrypt } from "./utils";
+import ImageWorker from './ImageWorker.js';
 
-export async function saveImage(image, roomId, sendSystemMessage) {
-  const previewImage = padImage(await (await restrictPhoto(image, 4096, "image/jpeg", 0.92)).arrayBuffer());
+// experiment with https://silvia-odwyer.github.io/photon/guide/using-photon-web/
+// import("@silvia-odwyer/photon").then(photon => {
+//   // it's now imported and should work
+//   console.log("Looks like photon got imported");
+//   console.log(photon);
+// });
+
+
+// // experiment with https://github.com/ai/offscreen-canvas
+// import createWorker from '../offscreen-canvas/create-worker'
+
+// const worker = createWorker(canvas, '/worker.js', e => {
+//   // Messages from the worker
+// })
+
+// document.addEventListener("localKvReady", function(e) {
+//   ReactDOM.render(<App />, document.getElementById('root'));
+// });
+
+
+
+// refactoring - 'image' becomes sbImage object
+export async function saveImage(sbImage, roomId, sendSystemMessage) {
+  const t0 = new Date().getTime();
+  const previewImage = padImage(await (await restrictPhoto(sbImage, 4096)).arrayBuffer());
   const previewHash = await generateImageHash(previewImage);
-  const fullImage = image.size > 15728640 ? padImage(await (await restrictPhoto(image, 15360, "image/jpeg", 0.92)).arrayBuffer()) : padImage(await image.arrayBuffer());
+  const t1 = new Date().getTime();
+  console.log(`#### previewHash took total ${t1 - t0} milliseconds (blocking)`);
+  // only if the file is over 15 MB do we restrict the full file - 15360 here is 15360 KB which is 15 MB
+  const fullImage = sbImage.image.size > 15728640 ? padImage(await (await restrictPhoto(sbImage, 15360)).arrayBuffer()) : padImage(await sbImage.image.arrayBuffer());
+  const t2 = new Date().getTime();
+  console.log(`#### fullImage load took total ${t2 - t1} milliseconds (blocking)`);
   const fullHash = await generateImageHash(fullImage);
+  const t3 = new Date().getTime();
+  console.log(`#### fullHash took total ${t3 - t2} milliseconds (blocking)`);
   const previewStorePromise = storeImage(previewImage, previewHash.id, previewHash.key, 'p', roomId).then(_x => {
     if (_x.hasOwnProperty('error')) sendSystemMessage('Could not store preview: ' + _x['error']);
+    const t5 = new Date().getTime();
+    console.log(`#### previewStorePromise took ${t5 - t3} milliseconds (asynchronous)`);
     return _x;
   });
+  const t4 = new Date().getTime();
   const fullStorePromise = storeImage(fullImage, fullHash.id, fullHash.key, 'f', roomId).then(_x => {
     if (_x.hasOwnProperty('error')) sendSystemMessage('Could not store full image: ' + _x['error']);
+    const t5 = new Date().getTime();
+    console.log(`#### fullStorePromise took ${t5 - t4} milliseconds (but asynchronous)`);
     return _x;
   });
 
@@ -27,8 +67,8 @@ export async function saveImage(image, roomId, sendSystemMessage) {
     preview: previewHash.id,
     fullKey: fullHash.key,
     previewKey: previewHash.key,
-    fullStorePromise: fullStorePromise,
-    previewStorePromise: previewStorePromise
+    fullStorePromise: fullStorePromise, // the return includes this promise
+    previewStorePromise: previewStorePromise // and this promise
   };
 }
 
@@ -63,7 +103,7 @@ export async function storeImage(image, image_id, keyData, type, roomId) {
     const resp = await uploadImage(storageToken, encrypt_data, type, image_id, data)
     const status = resp.status;
     const resp_json = await resp.json();
-    
+
     if (status !== 200) {
       return { error: 'Error: storeImage() failed (' + resp_json.error + ')' };
     }
@@ -151,99 +191,171 @@ export async function getFileData(file, outputType) {
 }
 
 
-export async function restrictPhoto(photo, maxSize, imageType, qualityArgument) {
-  // imageType default should be 'image/jpeg'
-  // qualityArgument should be 0.92 for jpeg and 0.8 for png (MDN default)
-  maxSize = maxSize * 1024; // KB
-  // console.log(`Target size is ${maxSize} bytes`);
-  let _c = await readPhoto(photo);
-  let _b1 = await new Promise((resolve) => {
-    _c.toBlob(resolve, imageType, qualityArgument);
-  });
-  // workingDots();
-  // console.log(`start canvas W ${_c.width} x H ${_c.height}`)
+// refactoring from using raw photo to using SBImage object
+// change: imageType, qualityArgument both hardcoded
+
+// helper
+// maxSize: target (max) size in KB
+// _c: full image on starting point canvas (eg sbImage.canvas)
+// _b1: blob version (eg sbImage.blob)
+export async function _restrictPhoto(maxSize, _c, _b1) {
+  const t2 = new Date().getTime();
+  const imageType = "image/jpeg";
+  const qualityArgument = 0.92;
   let _size = _b1.size;
   if (_size <= maxSize) {
-    // console.log(`Starting size ${_size} is fine`);
+    console.log(`Starting size ${_size} is fine (below target size ${maxSize}`);
     return _b1;
   }
-  // console.log(`Starting size ${_size} too large, start by reducing image size`);
+  console.log(`Starting size ${_size} too large (max is ${maxSize}) bytes.`)
+  console.log(`Reduce size by scaling canvas - start size is W ${_c.width} x H ${_c.height}`)
   // compression wasn't enough, so let's resize until we're getting close
+
   let _old_size;
   let _old_c;
-  while (_size > maxSize) {
-    _old_c = _c;
-    _c = scaleCanvas(_c, .5);
+  if (false) {
+    // experiments: we first cut it with quality argument (normalize)
     _b1 = await new Promise((resolve) => {
       _c.toBlob(resolve, imageType, qualityArgument);
     });
-    _old_size = _size;
+    console.log(`setting quality changed size from ${_size} to ${_b1.size}`);
+    await createImageBitmap(_b1).then(bm => { _c.getContext('2d').drawImage(bm, 0, 0) });
     _size = _b1.size;
-    // workingDots();
-    // console.log(`... reduced to W ${_c.width} x H ${_c.height} (to size ${_size})`);
+    // now we do a *single* big adjustment
+    _c = scaleCanvas(_c, Math.sqrt(maxSize / _size));
+    _old_c = _c
+    _b1 = await new Promise((resolve) => {
+      _c.toBlob(resolve, imageType, qualityArgument);
+    });
+    _size = _b1.size;
+    _old_size = _size;
+    const t3 = new Date().getTime();
+    console.log(`... reduced to W ${_c.width} x H ${_c.height} (to size ${_size}) ... total time ${t3 - t2} milliseconds`);
+  } else {
+    while (_size > maxSize) {
+      _old_c = _c;
+      _c = scaleCanvas(_c, .5);
+      _b1 = await new Promise((resolve) => {
+        _c.toBlob(resolve, imageType, qualityArgument);
+      });
+      _old_size = _size;
+      _size = _b1.size;
+      // workingDots();
+      const t3 = new Date().getTime();
+      console.log(`... reduced to W ${_c.width} x H ${_c.height} (to size ${_size}) ... total time ${t3 - t2} milliseconds`);
+    }
   }
 
   // we assume that within this width interval, storage is roughly prop to area,
   // with a little tuning downwards
-  let _ratio = maxSize / _old_size;
+  let _ratio = (maxSize / _old_size) * 0.95; // overshoot a bit
   let _maxIteration = 12;  // to be safe
-  // console.log(`... stepping back up to W ${_old_c.width} x H ${_old_c.height} and will then try scale ${_ratio.toFixed(4)}`);
+  console.log("_old_c is:")
+  console.log(_old_c);
+  console.log(`... stepping back up to W ${_old_c.width} x H ${_old_c.height} and will then try scale ${_ratio.toFixed(4)}`);
   let _final_c;
+  const t4 = new Date().getTime();
   do {
-    _final_c = scaleCanvas(_old_c, Math.sqrt(_ratio) * 0.99);  // we're targeting within 1%
+    _final_c = scaleCanvas(_old_c, Math.sqrt(_ratio) * 0.95); // always overshoot
     _b1 = await new Promise((resolve) => {
       _final_c.toBlob(resolve, imageType, qualityArgument);
-      // console.log(`(generating blob of requested type ${imageType})`);
+      console.log(`(generating blob of requested type ${imageType})`);
     });
     // workingDots();
-    // console.log(`... fine-tuning to W ${_final_c.width} x H ${_final_c.height} (size ${_b1.size})`);
+    console.log(`... fine-tuning to W ${_final_c.width} x H ${_final_c.height} (size ${_b1.size})`);
     _ratio *= (maxSize / _b1.size);
-  } while (((_b1.size > maxSize) || ((Math.abs(_b1.size - maxSize) / maxSize) > 0.02)) && (--_maxIteration > 0));  // it's ok within 2%
+    const t5 = new Date().getTime();
+    console.log(`... resulting _ratio is ${_ratio} ... total time here ${t5 - t4} milliseconds`);
+    console.log(` ... we're within ${(Math.abs(_b1.size - maxSize) / maxSize)} of cap (${maxSize})`);
+  } while (((_b1.size > maxSize) || ((Math.abs(_b1.size - maxSize) / maxSize) > 0.10)) && (--_maxIteration > 0));  // we're pretty tolerant here
 
-  // workingDots();
-  // console.log(`... ok looks like we're good now ... final size is ${_b1.size} (which is ${((_b1.size * 100) / maxSize).toFixed(2)}% of cap)`);
-
-  // document.getElementById('the-original-image').width = _final_c.width;  // a bit of a hack
   return _b1;
 }
 
 
-export async function readPhoto(photo) {
-  const canvas = document.createElement('canvas');
-  const img = document.createElement('img');
 
-  // create img element from File object
-  img.src = await new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target.result);
-    reader.readAsDataURL(photo);
-  });
-  await new Promise((resolve) => {
-    img.onload = resolve;
-  });
+export async function restrictPhoto(sbImage, maxSize) {
+  console.log("################################################################");
+  console.log("#################### inside restrictPhoto() ####################");
+  console.log("################################################################");
+  const t0 = new Date().getTime();
+  // imageType default should be 'image/jpeg'
+  // qualityArgument should be 0.92 for jpeg and 0.8 for png (MDN default)
+  maxSize = maxSize * 1024; // KB
+  // let _c = await readPhoto(photo);
+  let _c = await sbImage.img.then(() => sbImage.canvas);
+  console.log("Got sbImage as:");
+  console.log(sbImage);
+  console.log("And got sbImage.canvas as:");
+  console.log(_c);
+  const t1 = new Date().getTime();
+  console.log(`#### readPhoto took ${t1 - t0} milliseconds`);
+  // let _b1 = await new Promise((resolve) => _c.blob.then((b) => resolve(b)));
+  let _b1 = await sbImage.blob.then(() => sbImage.blob);
+  console.log("got blob");
+  console.log(_b1);
 
-  // console.log("img object");
-  // console.log(img);
-  // console.log("canvas object");
-  // console.log(canvas);
+  // let _b1 = await new Promise((resolve) => {
+  //   _c.toBlob(resolve, imageType, qualityArgument);
+  // });
+  const t2 = new Date().getTime();
+  console.log(`#### getting photo into a blob took ${t2 - t1} milliseconds`);
+  // workingDots();
 
-  // draw image in canvas element
-  canvas.width = img.width;
-  canvas.height = img.height;
-  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-  return canvas;
+  let _final_b1 = _restrictPhoto(maxSize, _c, _b1);
+
+  // workingDots();
+  console.log(`... ok looks like we're good now ... final size is ${_b1.size} (which is ${((_b1.size * 100) / maxSize).toFixed(2)}% of cap)`);
+  // document.getElementById('the-original-image').width = _final_c.width;  // a bit of a hack
+  const end = new Date().getTime();
+  console.log(`#### restrictPhoto() took total ${end - t0} milliseconds`);
+  return _final_b1;
 }
 
 
+// basically replaced by SBImage
+// export async function readPhoto(photo) {
+//   const canvas = document.createElement('canvas');
+//   const img = document.createElement('img');
+
+//   // create img element from File object
+//   img.src = await new Promise((resolve) => {
+//     const reader = new FileReader();
+//     reader.onload = (e) => resolve(e.target.result);
+//     reader.readAsDataURL(photo);
+//   });
+//   await new Promise((resolve) => {
+//     img.onload = resolve;
+//   });
+
+//   // console.log("img object");
+//   // console.log(img);
+//   // console.log("canvas object");
+//   // console.log(canvas);
+
+//   // draw image in canvas element
+//   canvas.width = img.width;
+//   canvas.height = img.height;
+//   canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+//   return canvas;
+// }
+
+
+// let scaledCanvas = document.createElement('canvas');
+
 export function scaleCanvas(canvas, scale) {
+  var start = new Date().getTime();
   const scaledCanvas = document.createElement('canvas');
   scaledCanvas.width = canvas.width * scale;
   scaledCanvas.height = canvas.height * scale;
-  // console.log(`#### scaledCanvas target W ${scaledCanvas.width} x H ${scaledCanvas.height}`);
+  // console.log(`#### scaledCanvas starting with W ${canvas.width} x H ${canvas.height}`);
   scaledCanvas
     .getContext('2d')
     .drawImage(canvas, 0, 0, scaledCanvas.width, scaledCanvas.height);
   // console.log(`#### scaledCanvas actual W ${scaledCanvas.width} x H ${scaledCanvas.height}`);
+  var end = new Date().getTime();
+  // console.log(`#### scaleCanvas() took ${end - start} milliseconds`);
+  console.log(`#### scaledCanvas scale ${scale} to target W ${scaledCanvas.width} x H ${scaledCanvas.height} took ${end - start} milliseconds`);
   return scaledCanvas;
 }
 
@@ -284,9 +396,363 @@ export function padImage(image_buffer) {
   return final_data;
 }
 
-
 export function unpadData(data_buffer) {
   // console.log(data_buffer, typeof data_buffer)
   const _size = new Uint32Array(data_buffer.slice(-4))[0];
   return data_buffer.slice(0, _size);
 }
+
+// let script_01 = 
+//     `data:text/javascript,
+//     function functionThatTakesLongTime(someArgument){
+//         //There are obviously faster ways to do this, I made this function slow on purpose just for the example.
+//         for(let i = 0; i < 1000000000; i++){
+//             someArgument++;
+//         }
+//         return someArgument;
+//     }
+//     onmessage = function(event){    //This will be called when worker.postMessage is called in the outside code.
+//         let foo = event.data;    //Get the argument that was passed from the outside code, in this case foo.
+//         let result = functionThatTakesLongTime(foo);    //Find the result. This will take long time but it doesn't matter since it's called in the worker.
+//         postMessage(result);    //Send the result to the outside code.
+//     };
+//     `;
+
+let script_02 =
+  `data:text/javascript,
+    function fileToAB(file) {
+      file.arrayBuffer().then((a) => postMessage(a, [a]));
+    }
+    onmessage = function(event){
+        fileToAB(event.data);
+    };
+    `;
+
+// code by Thomas Lochmatter, thomas.lochmatter@viereck.ch
+// Returns an object with the width and height of the JPEG image
+// stored in bytes, or null if the bytes do not represent a JPEG
+// image.
+function readJpegHeader(bytes) {
+  // JPEG magick
+  if (bytes[0] != 0xff) return;
+  if (bytes[1] != 0xd8) return;
+  // Go through all markers
+  var pos = 2;
+  var dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  while (pos + 4 < bytes.byteLength) {
+    // Scan for the next start marker (if the image is corrupt, this marker may not be where it is expected)
+    if (bytes[pos] != 0xff) {
+      pos += 1;
+      continue;
+    }
+    var type = bytes[pos + 1];
+    // Short marker
+    pos += 2;
+    if (bytes[pos] == 0xff) continue;
+    // SOFn marker
+    var length = dv.getUint16(pos);
+    if (pos + length > bytes.byteLength) return;
+    if (length >= 7 && (type == 0xc0 || type == 0xc2)) {
+      var data = {};
+      data.progressive = type == 0xc2;
+      data.bitDepth = bytes[pos + 2];
+      data.height = dv.getUint16(pos + 3);
+      data.width = dv.getUint16(pos + 5);
+      data.components = bytes[pos + 7];
+      return data;
+    }
+    // Other marker
+    pos += length;
+  }
+  return;
+}
+
+export class SBImage {
+  constructor(image) {
+    this.image = image; // file
+
+    var resolveAspectRatio;
+
+    this.aspectRatio = new Promise((resolve) => {
+      // block on getting width and height...
+      resolveAspectRatio = resolve;
+    });
+
+    // Fetch the original image
+    console.log("Fetching file:");
+    console.log(image);
+    this.imgURL = new Promise((resolve) => {
+      const _self = this;
+      const reader = image.stream().getReader();
+      return new ReadableStream({
+        start(controller) {
+          var foundSize = false;
+          return pump();
+          function pump() {
+            return reader.read().then(({ done, value }) => {
+              // When no more data needs to be consumed, close the stream
+              if (done) {
+                controller.close();
+                return;
+              }
+              // console.log("Got a chunk!");
+              // console.log(value);
+              // pull out size
+              if (!foundSize) {
+                foundSize = true;
+                // console.log("$$$$$$$ found first chunk")
+                const h = readJpegHeader(value);
+                // _self.width = value[165] * 256 + value[166];
+                // _self.height = value[163] * 256 + value[164];
+                // var width = value[165] * 256 + value[166];
+                // var height = value[163] * 256 + value[164];
+
+                if (h) {
+                  console.log("^^^^^^^^^^^^^^^^", h);
+                  _self.width = h.width;
+                  _self.height = h.height;
+                  console.log(`got the size of the image!!  ${_self.width} x ${_self.height}`);
+                  resolveAspectRatio(_self.width / _self.height);
+                } else {
+                  console.log("PROBLEM ***** ... could not parse jpeg header");
+                }
+              }
+              // Enqueue the next data chunk into our target stream
+              controller.enqueue(value);
+              return pump();
+            });
+          }
+        }
+      })
+    })
+      // Create a new response out of the stream
+      .then((stream) => new Response(stream))
+      // Create an object URL for the response
+      .then((response) => response.blob())
+      .then((blob) => URL.createObjectURL(blob))
+      // Update image
+      .then((url) => {
+        console.log("Finished getting 'url':");
+        console.log(url);
+        resolve(url);
+      })
+      .catch((err) => console.error(err));
+
+    this.img = new Promise((resolve) => {
+      const reader = new FileReader();
+      const img = document.createElement('img');
+      reader.onload = (e) => {
+        img.src = e.target.result;
+        resolve(img);
+      }
+      reader.readAsDataURL(this.image);
+    });
+
+    // this.canvas = new Promise((resolve) => {
+    //   this.img.then((img) => {
+    // 	const canvas = document.createElement('canvas'); 
+    // 	canvas.width = img.width;
+    // 	canvas.height = img.height;
+    // 	canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    // 	console.log("resolved canvas object:");
+    // 	console.log(canvas);
+    // 	resolve(canvas);
+    //   });
+    // });
+
+    // create a canvas and then wait for the correct size
+    this.canvas = new Promise((resolve) => {
+      this.aspectRatio.then((r) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = this.width;
+        canvas.height = this.height;
+        this.img.then((img) =>
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height));
+        // this will return right away with correctly-sized canvas
+        resolve(canvas);
+      });
+    });
+
+
+
+    // this.blob = new Promise((resolve) => {
+    //   const imageType = "image/jpeg";
+    //   const qualityArgument = 0.92;
+    //   this.canvas.then((canvas) => canvas.toBlob(resolve, imageType, qualityArgument));
+    // });
+
+    this.blob = new Promise((resolve) => {
+      // spin up worker
+      let worker = new Worker(script_02);
+      worker.onmessage = (event) => {
+        console.log("Got blob from worker:");
+        console.log(event.data);
+        resolve(new Blob([event.data])); // convert arraybuffer to blob
+      }
+      worker.postMessage(image);
+    });
+
+    // this requests some worker to load the file into a sharedarraybuffer
+    this.imageSAB = doImageTask(['loadSB', image], false);
+
+    // // simple worker template
+    // this.w = new Promise((resolve) => {
+    //   // spin up worker
+    //   let worker = new Worker(script_01);
+    //   worker.onmessage = (event) => {
+    // 	console.log(`Got result from worker: ${event.data}`);
+    // 	resolve(event.data);
+    //   }
+    //   worker.postMessage(42); // kick it off
+    // });
+
+    // this.canvas = new Promise((resolve) => {
+    //   const canvas = document.createElement('canvas');
+    //   this.img.then((img) => {
+    // 	canvas.width = img.width;
+    // 	canvas.height = img.height;
+    // 	canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    // 	resolve(canvas);
+    //   });
+    // });
+  }
+
+  loadToCanvas(canvas) {
+    return new Promise((resolve) => {
+      this.aspectRatio.then((r) => {
+        console.log("~~~~~~~~~~~~~~~~ got WxH", this.width, this.height);
+        canvas.width = this.width;
+        canvas.height = this.height;
+        this.imageSAB.then((imageSAB) => {
+          if (OffscreenCanvas) {
+            console.log("%%%%%%%%%%%%%%%% we are here");
+            console.log(imageSAB);
+            // const canvas = document.createElement('canvas'); // test to give it from caller
+            // var ctx = canvas.getContext('2d');
+            // var imageData = ctx.createImageData(400, 400);
+            const offscreen = canvas.transferControlToOffscreen();
+            // const ctx = offscreen.getContext('2d');
+            // doImageTask(['testCanvas', imageData.data.buffer], [imageData.data.buffer]).then((m) => console.log(m));
+            doImageTask(['testCanvas', offscreen, imageSAB], [offscreen]).then((m) => {
+              console.log("**************** Returned message:", m);
+              console.log("**************** offscreen:", canvas);
+              console.log("**************** offscreen:", offscreen);
+              resolve(canvas);
+            });
+          } else {
+            console.log("**************** THIS feature only works with OffscreenCanvas");
+            console.log("                 (TODO: make the code work as promise as fallback");
+          }
+        });
+      });
+    });
+  }
+}
+
+
+// we need this so it can be packaged
+export class BlobWorker extends Worker {
+  constructor(worker, i) {
+    const code = worker.toString();
+    const blob = new Blob([`(${code})(${i})`]);
+    return new Worker(URL.createObjectURL(blob));
+  }
+}
+
+let image_workers = [];
+let next_worker = 0;
+let max_workers = window.navigator.hardwareConcurrency;
+
+console.log(`setting up ${max_workers} image helper workers`);
+
+// const IW_code = _restrictPhoto.toString();
+// const IW_blob = new Blob([`${IW_code}`]);
+// const IW_url = URL.createObjectURL(IW_blob);
+// console.log("%%%%%%%%%%%%%%%% IW_code:", IW_code);
+
+for (let i = 0; i < max_workers; i++) {
+  let newWorker = {
+    worker: new BlobWorker(ImageWorker, i),
+    i: i, // index/number of worker
+    broken: false // tracks if there's a problem
+  };
+  image_workers.push(newWorker);
+}
+
+function doImageTask(vars, transfer) {
+  console.log("doImageTask() - vars are:");
+  console.log(vars);
+  var i = next_worker;
+  next_worker = (next_worker + 1) % max_workers;
+  var instance = image_workers[i].worker;
+  return new Promise(function (resolve, reject) {
+    // we pick one, rotating
+    console.log(`Passing ${vars} on to ${next_worker}`);
+    instance.onmessage = function (m) {
+      console.log(`[${i}] finished finished ... returning with:`);
+      console.log(m);
+      resolve(m.data);
+    }
+    try {
+      if (transfer) {
+        instance.postMessage(vars, transfer);
+      } else {
+        instance.postMessage(vars);
+      }
+    } catch (error) {
+      console.error(`Failed to send task to worker ${i}`);
+      console.error(error);
+      reject("failed");
+    }
+  });
+}
+
+
+
+
+// export function indexFile(ab) {
+//   // first file it sees is done "locally"
+//   if (!window.g_t_ndx) {
+//     window.g_t_ndx = {}; // otherwise race condition
+//     return new Promise(function (resolve, reject) {
+//       var p = (new Blob([ab])).text();
+//       p.then((s) => {
+//         console.log("indexFile() - got the string (file)");
+//         // console.log(s.slice(0, 200) + "...");
+//         var t = s.match(/([^.!?]+[.!?]+)|([^.!?]+$)/g);
+//         window.g_t = t;
+//         console.log("array should be in g_t ... ");
+//         var index = new Index();
+//         t.forEach((item, i) => index.add(i, item));
+//         window.g_t_ndx = index;
+//         console.log("index should be in window.g_t_ndx");
+//         resolve(index); // TODO - this needs to be same blob format as from web worker
+//       });
+//     });
+//   } else {
+//     // do first so there's no race condition
+//     var i = next_worker;
+//     next_worker = (next_worker + 1) % max_workers;
+//     var instance = search_workers[i].worker;
+//     return new Promise(function (resolve, reject) {
+//       // we pick one, rotating
+//       // var instance = new BlobWorker(IndexWorker);
+//       if (ab.byteLength > 0) {
+// 	console.log(`got a blob of size ${ab.byteLength} sending to worker ${next_worker}`);
+// 	instance.onmessage = function(m) {
+// 	  console.log(`[${i}] finished indexing ... returning buffer`);
+// 	  // console.log(m);
+// 	  resolve(m);
+// 	}
+// 	try {
+// 	  instance.postMessage(ab, [ab]);
+// 	} catch {
+// 	  console.error(`Failed to send task to worker ${i}`);
+// 	  reject("failed");
+// 	}
+//       } else {
+// 	reject(`[${i}] did not get anything to work with`);
+//       }
+//     });
+//   }
+// }

@@ -1,4 +1,6 @@
 import * as React from 'react';
+import Badge from '@mui/material/Badge';
+import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
@@ -10,10 +12,11 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import IosShareOutlinedIcon from '@mui/icons-material/IosShareOutlined';
 import ShareDialog from "../Modals/ShareDialog"
+import ConnectionStatus from "./ConnectionStatus"
 
 const ITEM_HEIGHT = 48;
 
-export default function RoomMenu(props) {
+const RoomMenu = (props) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const open = Boolean(anchorEl);
@@ -24,14 +27,14 @@ export default function RoomMenu(props) {
     setAnchorEl(null);
   };
 
-  const toggle = () =>{
+  const toggle = () => {
     console.log('toggling')
     setDialogOpen(!dialogOpen)
   }
 
   return (
     <div>
-      <ShareDialog open={dialogOpen} roomId={props.roomId} onClose={toggle}/>
+      <ShareDialog open={dialogOpen} roomId={props.roomId} onClose={toggle} />
       <IconButton
         aria-label="more"
         id="long-button"
@@ -76,7 +79,7 @@ export default function RoomMenu(props) {
             </ListItemIcon>
             <ListItemText>Download Room Data</ListItemText>
           </MenuItem>
-          <MenuItem  onClick={toggle}>
+          <MenuItem onClick={toggle}>
             <ListItemIcon>
               <IosShareOutlinedIcon />
             </ListItemIcon>
@@ -84,6 +87,15 @@ export default function RoomMenu(props) {
           </MenuItem>
         </MenuList>
       </Menu>
+      {props.selected ?
+        // <ConnectionStatus socket={props.socket}/> 
+        ''
+        : ''
+
+      }
+
     </div>
   );
 }
+
+export default RoomMenu
