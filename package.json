@@ -52,7 +52,7 @@
     "react-native-web": "0.18.1",
     "react-router-dom": "^6.3.0",
     "react-scripts": "^5.0.1",
-    "snackabra": "https://github.com/384co/snackabra-jslib.git#matt",
+    "snackabra": "~/WebstormProjects/384/snackabra-jslib",
     "styled-components": "^5.3.5",
     "workbox-background-sync": "^6.5.3",
     "workbox-broadcast-update": "^6.5.3",

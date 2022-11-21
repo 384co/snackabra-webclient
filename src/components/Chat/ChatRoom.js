@@ -106,6 +106,7 @@ class ChatRoom extends React.Component {
 
   recieveMessages = (msg) => {
     if (msg) {
+      console.log(msg)
       if (!msg.control) {
         const messages = this.state.messages.reduce((acc, curr) => {
           if (!this.sending.hasOwnProperty(curr._id)) {
@@ -202,6 +203,7 @@ class ChatRoom extends React.Component {
       a.forEach((ab, i) => {
         // mtg: We are sending the message here missing the id of the image, I think we can use the signature 
         let sbm = new SB.SBMessage(this.sbContext.socket, '', this.state.files[i].restrictedUrl)
+        sbm.contents.image = this.state.files[i].restrictedUrl
         sbm.send().then(() => {
           Promise.all([
             this.sbContext.SB.storage.storeObject(ab, 'f', this.sbContext.activeroom),
