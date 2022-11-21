@@ -1,23 +1,36 @@
 import * as React from 'react';
 import Badge from '@mui/material/Badge';
-import Divider from '@mui/material/Divider';
-import { observer } from "mobx-react"
+import Tooltip from '@mui/material/Tooltip';
 
 const ConnectionStatus = (props) => {
     const [status, setStatus] = React.useState('warning')
     React.useEffect(() => {
-        console.log(props.socket?.ws)
+        switch (props.socket?.status) {
+            case 'CONNECTING':
+                setStatus('warning')
+                break;
+            case 'OPEN':
+                setStatus('success')
+                break;
+            case 'CLOSING':
+                setStatus('warning')
+                break;
+            default:
+                setStatus('error')
+                break;
+        }
     }, [props])
-
+    console.log(status)
     return (
         <>
-            <Divider orientation="vertical" />
-            <Badge
-                badgeContent=""
-                color={status}
-                variant="solid"
-            />
-
+            <Tooltip title={`Connection Status (${props.socket?.status})`}>
+                <Badge
+                    sx={{ pl: 2 }}
+                    badgeContent=""
+                    color={status}
+                    variant="solid"
+                />
+            </Tooltip>
         </>
     );
 }

@@ -332,7 +332,6 @@ class ChatRoom extends React.Component {
   }
   
   render() {
-    console.log(this.sbContext.socket)
     const attachMenu = Boolean(this.state.anchorEl);
     return (
 
