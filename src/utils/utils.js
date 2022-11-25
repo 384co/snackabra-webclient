@@ -24,6 +24,8 @@
 
 
 import config from "../config";
+const SB = require('snackabra')
+const sbCrypto = new SB.SBCrypto();
 
 function extractPayloadV1(payload) {
   try {
@@ -75,7 +77,7 @@ export function arrayBufferToBase64(buffer) {
 
 export function base64ToArrayBuffer(base64) {
   try {
-    var binary_string = window.atob(base64);
+    var binary_string = SB.str2ab(base64);
     var len = binary_string.length;
     var bytes = new Uint8Array(len);
     for (var i = 0; i < len; i++) {
@@ -275,11 +277,11 @@ export async function downloadRoomData(roomId, rooms) {
     let dataJson = JSON.parse(dataString);
     let room_lockedKey_string = localStorage.getItem(roomId + "_lockedKey");
     let decKey_string = dataJson["encryptionKey"];
-    let decKey = await crypto.subtle.importKey("jwk", JSON.parse(decKey_string), { name: "AES-GCM" }, false, ["decrypt"]);
+    let decKey = await sbCrypto.importKey("jwk", JSON.parse(decKey_string), 'AES', false, ["decrypt"]);
     let room_lockedKey = null;
     if (room_lockedKey_string != null) {
       console.log("Found locked key in localstorage")
-      room_lockedKey = await crypto.subtle.importKey("jwk", JSON.parse(room_lockedKey_string), { name: "AES-GCM" }, false, ["decrypt"]);
+      room_lockedKey = await sbCrypto.importKey("jwk", JSON.parse(room_lockedKey_string), 'AES', false, ["decrypt"]);
     }
     console.log("Imported decryption keys", decKey, room_lockedKey)
     let imageData = await getImageIds(dataJson, decKey, room_lockedKey);
@@ -311,7 +313,7 @@ export async function getImageIds(messages, decKey, lockedKey) {
         // console.log(_json_msg)
         if (_json_msg.hasOwnProperty('control')) {
           console.log(_json_msg)
-          unwrapped_messages[_json_msg["id"] + "." + (_json_msg.hasOwnProperty("type") ? _json_msg["type"] : "")] = _json_msg['verificationToken'];
+          unwrapped_messages[_json_msg["id"] + "." + (_json_msg.hasOwnProperty("type") ? _json_msg["type"] : "p")] = _json_msg['verificationToken'];
         }
       }
     } catch (e) {
@@ -324,8 +326,8 @@ export async function getImageIds(messages, decKey, lockedKey) {
 
 export async function decrypt(secretKey, contents, outputType = "string") {
   try {
-    const ciphertext = typeof contents.content === 'string' ? base64ToArrayBuffer(decodeURIComponent(contents.content)) : contents.content;
-    const iv = typeof contents.iv === 'string' ? base64ToArrayBuffer(decodeURIComponent(contents.iv)) : contents.iv;
+    const ciphertext = typeof contents.content === 'string' ? SB.base64ToArrayBuffer(decodeURIComponent(contents.content)) : contents.content;
+    const iv = typeof contents.iv === 'string' ? SB.base64ToArrayBuffer(decodeURIComponent(contents.iv)) : contents.iv;
     let decrypted = await window.crypto.subtle.decrypt(
       {
         name: "AES-GCM",
