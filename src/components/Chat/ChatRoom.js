@@ -38,6 +38,7 @@ class ChatRoom extends React.Component {
     uploading: false,
     user: {},
     height: 0,
+    visibility: 'visible'
   }
   sbContext = this.props.sbContext
 
@@ -52,9 +53,16 @@ class ChatRoom extends React.Component {
     window.addEventListener('orientationchange', handleResize)
     handleResize();
 
-
-
+    // reconnect when window comes into focus and the state of the socket is not opened
+    document.addEventListener("visibilitychange", () => {
+      if(this.state.visibility === 'hidden' && document.visibilityState === 'visible' && this.sbContext.socket?.status !== 'OPEN'){
+        this.connect();
+      }
+      this.setState({visibility: document.visibilityState})
+    })
     if (!this.sbContext.rooms[this.props.roomId]?.key) {
+      console.log(JSON.stringify(this.sbContext.activeroom))
+      console.log(this.sbContext.rooms[this.props.roomId]?.key)
       this.setState({ openFirstVisit: true })
     } else {
       this.connect();

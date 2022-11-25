@@ -8,11 +8,13 @@ import * as utils from '../../utils/utils';
 import {observer} from "mobx-react"
 import sbContext from "../../stores/Snackabra.Store"
 
+
+//TODO: optimize this component it is slowing down the loading of the homepage
 const ExportRoomKeys = observer(() => {
   const [fileName, setFilename] = useState('SnackabraData');
 
   const getData = (pem) => {
-    return { roomData: sbContext.rooms, contacts: sbContext.contacts, roomMetadata: sbContext.roomMetadata, pem: pem }
+    return { roomData: sbContext.rooms, contacts: sbContext.contacts, roomMetadata: sbContext.rooms, pem: pem }
   }
 
   const exportPemKeys = async () => {

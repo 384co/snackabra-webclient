@@ -39,6 +39,7 @@ const ResponsiveDrawer = observer((props) => {
   const Notifications = useContext(NotificationContext)
   let { room_id } = useParams();
   const { window } = props;
+  const [roomId, setRoomId] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [openImportDialog, setOpenImportDialog] = React.useState(false);
   const [openCreateDialog, setOpenCreateDialog] = React.useState(false);
@@ -46,6 +47,12 @@ const ResponsiveDrawer = observer((props) => {
   const [openJoinDialog, setOpenJoinDialog] = React.useState(false);
   const [editingRoomId, setEditingRoomId] = React.useState(false);
   const [updatedName, setUpdatedName] = React.useState(false);
+
+  React.useEffect(()=>{
+    sbContext.init().then(()=>{
+      setRoomId(room_id)
+    })
+  },[room_id])
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -123,8 +130,8 @@ const ResponsiveDrawer = observer((props) => {
         </Hidden>
         <Divider />
         {Object.keys(sbContext.rooms).map((room, index) => {
-          const bgColor = room === room_id ? '#ff5c42' : 'inherit';
-          const color = room === room_id ? '#fff' : 'inherit';
+          const bgColor = room === roomId ? '#ff5c42' : 'inherit';
+          const color = room === roomId ? '#fff' : 'inherit';
           const roomName = sbContext.rooms[room].name
           return (
             <ListItem key={index} disablePadding sx={{ backgroundColor: bgColor, color: color }}>
@@ -168,7 +175,7 @@ const ResponsiveDrawer = observer((props) => {
                   <Grid xs={5} item>
                     <RoomMenu
                       socket={sbContext.socket}
-                      selected={room === room_id}
+                      selected={room === roomId}
                       roomId={room}
                       editRoom={() => {
                         editRoom(room)
@@ -247,13 +254,13 @@ const ResponsiveDrawer = observer((props) => {
         component="main"
         sx={{ flexGrow: 1, p: 0, width: { xs: '100%', sm: `calc(100% - ${drawerWidth}px)` } }}
       >
-        {(!room_id || !sbContext.activeroom) && (<Grid>
+        {(!roomId || !sbContext.activeroom) && (<Grid>
           <Toolbar />
           <Typography variant={'h6'}>Select a room or create a new one to get started.</Typography>
         </Grid>)
         }
-        {(room_id && sbContext.activeroom) &&
-          (<ChatRoom roomId={room_id ? room_id : sbContext.activeroom} sbContext={sbContext} Notifications={Notifications} />)
+        {(roomId && sbContext) &&
+          (<ChatRoom roomId={roomId ? roomId : sbContext.activeroom} sbContext={sbContext} Notifications={Notifications} />)
         }
       </Box>
     </Box>
