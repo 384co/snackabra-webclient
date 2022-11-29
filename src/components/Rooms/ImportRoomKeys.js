@@ -4,12 +4,11 @@ import { Grid, TextField, Typography } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
 import { useState, useContext } from "react"
 import NotificationContext from "../../contexts/NotificationContext";
-import * as utils from "../../utils/utils";
 import { observer } from "mobx-react"
-import sbContext from "../../stores/Snackabra.Store"
-
+import { SnackabraContext } from "mobx-snackabra-store";
 
 const ImportRoomKeys = observer((props) => {
+  const sbContext = React.useContext(SnackabraContext);
   const Notifications = useContext(NotificationContext)
   const [key, setKey] = useState('No file selected');
 

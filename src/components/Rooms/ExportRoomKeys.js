@@ -6,13 +6,13 @@ import { StyledButton } from "../../styles/Buttons";
 import { useState } from "react"
 import * as utils from '../../utils/utils';
 import {observer} from "mobx-react"
-import sbContext from "../../stores/Snackabra.Store"
+import { SnackabraContext } from "mobx-snackabra-store";
 
 
 //TODO: optimize this component it is slowing down the loading of the homepage
 const ExportRoomKeys = observer(() => {
+  const sbContext = React.useContext(SnackabraContext);
   const [fileName, setFilename] = useState('SnackabraData');
-
   const getData = (pem) => {
     return { roomData: sbContext.rooms, contacts: sbContext.contacts, roomMetadata: sbContext.rooms, pem: pem }
   }
@@ -56,7 +56,7 @@ const ExportRoomKeys = observer(() => {
           justifyContent="flex-start"
           alignItems="flex-start">
 
-      {Object.keys(sbContext.roomMetadata).length > 0 || Object.keys(sbContext.contacts).length > 0 || Object.keys(sbContext.rooms).length > 0
+      {Object.keys(sbContext.rooms).length > 0
         ? <Grid spacing={2}
                 container
                 direction="row"

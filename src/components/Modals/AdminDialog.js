@@ -7,7 +7,7 @@ import { StyledButton } from "../../styles/Buttons";
 import ConfirmLockDialog from "./ConfirmLockDialog";
 import NotificationContext from "../../contexts/NotificationContext";
 import { observer } from "mobx-react"
-import sbContext from "../../stores/Snackabra.Store"
+import { SnackabraContext } from "mobx-snackabra-store";
 
 function isNumeric(v) {
   return !isNaN(v) &&
@@ -15,6 +15,7 @@ function isNumeric(v) {
 }
 
 const AdminDialog = observer((props) => {
+  const sbContext = React.useContext(SnackabraContext);
   const notify = React.useContext(NotificationContext);
   const [roomCapacity, setRoomCapacity] = useState(sbContext.capacity);
   const [motd, setMOTD] = useState(sbContext.motd);

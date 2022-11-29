@@ -9,6 +9,7 @@ import AppRoutes from "./Routes";
 import theme from "./theme";
 import { ThemeProvider } from "@mui/material";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import { SnackabraProvider } from "mobx-snackabra-store";
 import NotificationBar from "./components/NotificationBar";
 
 i18n.loadLocaleData({
@@ -17,15 +18,23 @@ i18n.loadLocaleData({
 i18n.load('en', messages)
 i18n.activate('en')
 
+const sbConfig = {
+  channel_server: process.env.REACT_APP_ROOM_SERVER,
+  channel_ws: process.env.REACT_APP_STORAGE_SERVER,
+  storage_server: process.env.REACT_APP_ROOM_SERVER_WS
+}
+
 const App = () => {
   return (
     <I18nProvider i18n={i18n}>
-        <ThemeProvider theme={theme}>
+      <ThemeProvider theme={theme}>
+        <SnackabraProvider config={sbConfig}>
           <NotificationProvider>
-              <AppRoutes />
+            <AppRoutes />
             <NotificationBar />
           </NotificationProvider>
-        </ThemeProvider>
+        </SnackabraProvider>
+      </ThemeProvider>
     </I18nProvider>
   )
 }

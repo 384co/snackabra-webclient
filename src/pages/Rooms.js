@@ -29,13 +29,13 @@ import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import NotificationContext from "../contexts/NotificationContext";
 import RoomMenu from "../components/Rooms/RoomMenu"
 import { observer } from "mobx-react"
-import sbContext from "../stores/Snackabra.Store"
+import { SnackabraContext } from "mobx-snackabra-store";
 
 
 const drawerWidth = 240;
 
 const ResponsiveDrawer = observer((props) => {
-
+  const sbContext = React.useContext(SnackabraContext);
   const Notifications = useContext(NotificationContext)
   let { room_id } = useParams();
   const { window } = props;
@@ -49,9 +49,7 @@ const ResponsiveDrawer = observer((props) => {
   const [updatedName, setUpdatedName] = React.useState(false);
 
   React.useEffect(()=>{
-    sbContext.init().then(()=>{
       setRoomId(room_id)
-    })
   },[room_id])
 
   const handleDrawerToggle = () => {

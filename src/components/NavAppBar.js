@@ -5,9 +5,11 @@ import { AppBarTab, AppBarTabLink, AppBarTabs } from "../styles/AppBarTabs";
 import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded';
 import WhisperUserDialog from "./Modals/WhisperUserDialog";
 import { observer } from "mobx-react"
-import sbContext from "../stores/Snackabra.Store"
+import { SnackabraContext } from "mobx-snackabra-store";
+
 
 const NavAppBar = observer((props) => {
+  const sbContext = React.useContext(SnackabraContext);
   const [value, setValue] = React.useState(0);
   const [openWhisper, setOpenWhisper] = React.useState(false);
   const location = useLocation();
@@ -80,7 +82,7 @@ const NavAppBar = observer((props) => {
               <Grid item>
                 <Typography variant='body2'>v{process.env.REACT_APP_CLIENT_VERSION}</Typography>
               </Grid>
-              {!sbContext.admin && sbContext.activeRoom !== "" ?
+              {!sbContext.admin && sbContext.socket?.status === "OPEN" ?
                 <Avatar onClick={() => { setOpenWhisper(true) }} sx={{ width: 48, height: 48, bgcolor: 'transparent' }}>
                   <IconButton color="inherit" component="span">
                     <AccountCircleRoundedIcon />

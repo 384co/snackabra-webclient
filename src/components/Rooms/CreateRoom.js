@@ -6,10 +6,11 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { useState, useContext } from "react"
 import NotificationContext from "../../contexts/NotificationContext";
 import {observer} from "mobx-react"
-import sbContext from "../../stores/Snackabra.Store"
+import { SnackabraContext } from "mobx-snackabra-store";
 
 
 const CreateRoom = observer((props) => {
+  const sbContext = React.useContext(SnackabraContext);
   const Notifications = useContext(NotificationContext)
   const [secret, setSecret] = useState('');
   const [creating, setCreating] = useState(false);

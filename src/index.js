@@ -6,8 +6,6 @@ import App from './App';
 import { createRoot } from 'react-dom/client';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import IndexedKV from "./utils/IndexedKV";
-import sbContext from './stores/Snackabra.Store'
-
 const container = document.getElementById('root');
 const root = createRoot(container);
 
@@ -16,10 +14,7 @@ document.addEventListener('touchmove', function (event) {
 }, { passive: false });
 
 document.addEventListener("localKvReady", async (e) => {
-  sbContext.init().then(() => {
     root.render(<App />);
-  })
-
 });
 
 

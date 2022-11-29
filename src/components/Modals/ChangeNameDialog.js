@@ -4,10 +4,11 @@ import { Grid, OutlinedInput } from "@mui/material";
 import { StyledButton } from "../../styles/Buttons";
 import { useState, useEffect } from "react";
 import { observer } from "mobx-react"
-import sbContext from "../../stores/Snackabra.Store"
+import { SnackabraContext } from "mobx-snackabra-store";
 
 
 const ChangeNameDialog = observer((props) => {
+  const sbContext = React.useContext(SnackabraContext);
   const [open, setOpen] = useState(props.open);
   const [username, setUsername] = useState(props.name);
 
