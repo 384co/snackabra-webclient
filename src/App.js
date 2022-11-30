@@ -20,9 +20,11 @@ i18n.activate('en')
 
 const sbConfig = {
   channel_server: process.env.REACT_APP_ROOM_SERVER,
-  channel_ws: process.env.REACT_APP_STORAGE_SERVER,
-  storage_server: process.env.REACT_APP_ROOM_SERVER_WS
+  channel_ws: process.env.REACT_APP_ROOM_SERVER_WS,
+  storage_server: process.env.REACT_APP_STORAGE_SERVER
 }
+
+console.log(sbConfig)
 
 const App = () => {
   return (

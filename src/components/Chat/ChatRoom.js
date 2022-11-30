@@ -55,10 +55,10 @@ class ChatRoom extends React.Component {
 
     // reconnect when window comes into focus and the state of the socket is not opened
     document.addEventListener("visibilitychange", () => {
-      if(this.state.visibility === 'hidden' && document.visibilityState === 'visible' && this.sbContext.socket?.status !== 'OPEN'){
+      if (this.state.visibility === 'hidden' && document.visibilityState === 'visible' && this.sbContext.socket?.status !== 'OPEN') {
         this.connect();
       }
-      this.setState({visibility: document.visibilityState})
+      this.setState({ visibility: document.visibilityState })
     })
     if (!this.sbContext.rooms[this.props.roomId]?.key) {
       console.log(JSON.stringify(this.sbContext.activeroom))
@@ -142,7 +142,7 @@ class ChatRoom extends React.Component {
     this.setState({ img: message.image, openPreview: true })
     try {
       console.log(message)
-      this.sbContext.SB.storage.retrieveDataFromMessage(message, this.state.controlMessages).then((data) => {
+      this.sbContext.SB.storage.retrieveDataFromMessage(message._id, this.state.controlMessages).then((data) => {
         console.log(data)
         if (data.hasOwnProperty('error')) {
           //activeChatContext.sendSystemMessage('Could not open image: ' + data['error']);
@@ -336,9 +336,9 @@ class ChatRoom extends React.Component {
     // setTimeout(()=>{
     //   window.location.reload()
     // }, 1000)
-    
+
   }
-  
+
   render() {
     const attachMenu = Boolean(this.state.anchorEl);
     return (
