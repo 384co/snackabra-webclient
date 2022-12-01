@@ -147,8 +147,7 @@ class ChatRoom extends React.Component {
         if (data.hasOwnProperty('error')) {
           //activeChatContext.sendSystemMessage('Could not open image: ' + data['error']);
         } else {
-          // this.setState({ img: data['url'], imgLoaded: true })
-          this.setState({ imgLoaded: true })
+          this.setState({ img: data['url'], imgLoaded: true })
         }
       })
     } catch (error) {
