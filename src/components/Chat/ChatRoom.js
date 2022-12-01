@@ -233,8 +233,8 @@ class ChatRoom extends React.Component {
             // now the preview (up to 2MiB) has been safely stored
             let controlMessage = new SB.SBMessage(this.sbContext.socket);
             // controlMessage.imageMetaData = imageMetaData;
-            controlMessage.control = true;
-            controlMessage.verificationToken = previewVerification;
+            controlMessage.contents.control = true;
+            controlMessage.contents.verificationToken = previewVerification;
             controlMessage.contents.id = o[1].id;
             controlMessage.send();
           }).finally(() => {
