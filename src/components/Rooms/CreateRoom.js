@@ -21,7 +21,7 @@ const CreateRoom = observer((props) => {
     Notifications.setOpen(true)
     setCreating(false)
     setTimeout(()=>{
-      window.location.href = window.location.origin+`/rooms/${roomId}`
+      window.location.href = window.location.origin+`/${roomId}`
     }, 750)
     
   }

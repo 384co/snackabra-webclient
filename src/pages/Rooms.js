@@ -141,7 +141,7 @@ const ResponsiveDrawer = observer((props) => {
                 >
                   <Grid xs={7} item>
                     {editingRoomId !== room ?
-                      <a href={`/rooms/${room}`}>
+                      <a href={`/${room}`}>
                         <ListItemText primary={roomName} />
                       </a> :
                       <TextField
