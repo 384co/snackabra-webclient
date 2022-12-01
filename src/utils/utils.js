@@ -77,7 +77,7 @@ export function arrayBufferToBase64(buffer) {
 
 export function base64ToArrayBuffer(base64) {
   try {
-    var binary_string = SB.str2ab(base64);
+    var binary_string = str2ab(base64);
     var len = binary_string.length;
     var bytes = new Uint8Array(len);
     for (var i = 0; i < len; i++) {
@@ -91,7 +91,7 @@ export function base64ToArrayBuffer(base64) {
 }
 
 export function ab2str(buf) {
-  return String.fromCharCode.apply(null, new Uint8Array(buf));
+  return new TextDecoder().decode(buf);
 }
 
 export function partition(str, n) {

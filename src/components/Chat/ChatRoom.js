@@ -16,7 +16,7 @@ import FirstVisitDialog from "../Modals/FirstVisitDialog";
 import RenderSend from "./RenderSend";
 import RenderComposer from "./RenderComposer";
 import { observer } from "mobx-react"
-import { metadata } from 'core-js/fn/reflect';
+import { saveImage, retrieveData } from '../../utils/snackabra-js/ImageProcessor';
 const SB = require('snackabra')
 
 @observer
@@ -143,8 +143,7 @@ class ChatRoom extends React.Component {
     this.setState({ img: message.image, openPreview: true })
     try {
       console.log(message)
-      this.sbContext.SB.storage.retrieveImage(message.imageMetaData,
-        this.state.controlMessages).then((data) => {
+      retrieveData(message, this.state.controlMessages).then((data) => {
         console.log(data)
         if (data.hasOwnProperty('error')) {
           //activeChatContext.sendSystemMessage('Could not open image: ' + data['error']);
@@ -185,7 +184,7 @@ class ChatRoom extends React.Component {
     this.setState({ loading: false, files: loaded })
   }
   //TODO: for images render in chat and then replace with received message
-  sendFiles = (giftedMessage) => {
+  sendFiles = async (giftedMessage) => {
     this.setState({ uploading: true })
     const fileMessages = [];
     const arrayBufferPromises = [];
@@ -200,54 +199,84 @@ class ChatRoom extends React.Component {
       }
       this.sending[message._id] = message._id
       fileMessages.push(message)
-      arrayBufferPromises.push(file.data.arrayBuffer())
-      console.log(file)
+      arrayBufferPromises.push(file.data)
+      console.log(file.data)
       // this.sbContext.SB.storage.storeObject(file.arrayBuffer).then(()=>{
 
       // })
       //this.SB.sendFile(file.data)
     })
     this.setState({ messages: [...this.state.messages, ...fileMessages] })
-
-    Promise.all(arrayBufferPromises).then((a) => {
-      a.forEach((ab, i) => {
-        // resize needs to be done
-        Promise.all([
-          // these return SBObjectHandle
-          this.sbContext.SB.storage.storeObject(ab, 'f', this.sbContext.activeroom),
-          this.sbContext.SB.storage.storeObject(ab, 'p', this.sbContext.activeroom)
-        ]).then((o) => {
-          // mtg: We are sending the message here missing the id of the image, I think we can use the signature 
-          let sbm = new SB.SBMessage(this.sbContext.socket)
-          // populate
-          sbm.contents.image = this.state.files[i].restrictedUrl
-          const imageMetaData = {
-            imageId: o[0].id,
-            imageKey: o[0].key,
-            previewId: o[1].id,
-            previewKey: o[1].key,
-          }
-          sbm.contents.imageMetaData = imageMetaData;
-          sbm.send(); // and no we don't need to wait
-          o[1].verification.then((previewVerification) => {
-            // now the preview (up to 2MiB) has been safely stored
-            let controlMessage = new SB.SBMessage(this.sbContext.socket);
-            // controlMessage.imageMetaData = imageMetaData;
-            controlMessage.contents.control = true;
-            controlMessage.contents.verificationToken = previewVerification;
-            controlMessage.contents.id = o[1].id;
-            controlMessage.send();
-          }).finally(() => {
-            if (i === arrayBufferPromises.length - 1) {
-              this.setState({ uploading: false })
-              this.removeInputFiles()
-            }
-          })
-        })
-
+    for (let x in arrayBufferPromises) {
+      const metadata = await saveImage(arrayBufferPromises[x], this.sbContext.activeroom)
+      let sbm = new SB.SBMessage(this.sbContext.socket)
+      // populate
+      sbm.contents.image = this.state.files[x].restrictedUrl
+      const imageMetaData = {
+        imageId: metadata.full,
+        imageKey: metadata.fullKey,
+        previewId: metadata.preview,
+        previewKey: metadata.previewKey,
+      }
+      sbm.contents.imageMetaData = imageMetaData;
+      sbm.send(); // and no we don't need to wait
+      Promise.all([metadata.previewStorePromise]).then((previewVerification) => {
+        // now the preview (up to 2MiB) has been safely stored
+        let controlMessage = new SB.SBMessage(this.sbContext.socket);
+        // controlMessage.imageMetaData = imageMetaData;
+        controlMessage.contents.control = true;
+        controlMessage.contents.verificationToken = previewVerification;
+        controlMessage.contents.id = imageMetaData.previewId;
+        controlMessage.send();
+      }).finally(() => {
+        console.log(Number(x), arrayBufferPromises.length - 1)
+        metadata.fullStorePromise.then(console.log)
+        if (Number(x) === arrayBufferPromises.length - 1) {
+          this.setState({ uploading: false })
+          this.removeInputFiles()
+        }
       })
+    }
+    // const files = await saveImage()
+    // Promise.all(arrayBufferPromises).then((a) => {
+    //   a.forEach((ab, i) => {
+    //     // resize needs to be done
+    //     Promise.all([
+    //       // these return SBObjectHandle
+    //       this.sbContext.SB.storage.storeObject(ab, 'f', this.sbContext.activeroom),
+    //       this.sbContext.SB.storage.storeObject(ab, 'p', this.sbContext.activeroom)
+    //     ]).then((o) => {
+    //       // mtg: We are sending the message here missing the id of the image, I think we can use the signature 
+    //       let sbm = new SB.SBMessage(this.sbContext.socket)
+    //       // populate
+    //       sbm.contents.image = this.state.files[i].restrictedUrl
+    //       const imageMetaData = {
+    //         imageId: o[0].id,
+    //         imageKey: o[0].key,
+    //         previewId: o[1].id,
+    //         previewKey: o[1].key,
+    //       }
+    //       sbm.contents.imageMetaData = imageMetaData;
+    //       sbm.send(); // and no we don't need to wait
+    //       o[1].verification.then((previewVerification) => {
+    //         // now the preview (up to 2MiB) has been safely stored
+    //         let controlMessage = new SB.SBMessage(this.sbContext.socket);
+    //         // controlMessage.imageMetaData = imageMetaData;
+    //         controlMessage.contents.control = true;
+    //         controlMessage.contents.verificationToken = previewVerification;
+    //         controlMessage.contents.id = o[1].id;
+    //         controlMessage.send();
+    //       }).finally(() => {
+    //         if (i === arrayBufferPromises.length - 1) {
+    //           this.setState({ uploading: false })
+    //           this.removeInputFiles()
+    //         }
+    //       })
+    //     })
 
-    })
+    //   })
+
+    // })
   }
 
   sendMessages = async (giftedMessage) => {

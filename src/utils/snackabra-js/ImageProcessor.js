@@ -7,17 +7,16 @@ import config from "../../config";
 import { decrypt } from "../utils";
 import { encrypt, getImageKey } from "../crypto";
 
-export async function saveImage(image, roomId, sendSystemMessage) {
+
+export async function saveImage(image, roomId) {
   const previewImage = padImage(await (await restrictPhoto(image, 4096, "image/jpeg", 0.92)).arrayBuffer());
   const previewHash = await generateImageHash(previewImage);
   const fullImage = image.size > 15728640 ? padImage(await (await restrictPhoto(image, 15360, "image/jpeg", 0.92)).arrayBuffer()) : padImage(await image.arrayBuffer());
   const fullHash = await generateImageHash(fullImage);
   const previewStorePromise = storeImage(previewImage, previewHash.id, previewHash.key, 'p', roomId).then(_x => {
-    if (_x.hasOwnProperty('error')) sendSystemMessage('Could not store preview: ' + _x['error']);
     return _x;
   });
   const fullStorePromise = storeImage(fullImage, fullHash.id, fullHash.key, 'f', roomId).then(_x => {
-    if (_x.hasOwnProperty('error')) sendSystemMessage('Could not store full image: ' + _x['error']);
     return _x;
   });
 
@@ -94,29 +93,23 @@ export async function generateImageHash(image) {
   }
 }
 
-async function downloadImage(control_msg, image_id, cache) {
-  const imageFetch = await (await fetch(config.STORAGE_SERVER + "/fetchData?id=" + encodeURIComponent(control_msg.id) + '&verification_token=' + control_msg.verificationToken)).arrayBuffer();
+async function downloadImage(control_msg) {
+  console.log(control_msg)
+  const imageFetch = await (await fetch(config.STORAGE_SERVER + "/fetchData?id=" + encodeURIComponent(control_msg.id) + '&verification_token=' + control_msg.verificationToken[0].verificationToken)).arrayBuffer();
   let data = utils.extractPayload(imageFetch);
-  document.cacheDb.setItem(`${image_id}_cache`, data)
   return data;
 }
 
 
-export async function retrieveData(message, controlMessages, cache) {
+export async function retrieveData(message, controlMessages) {
   const imageMetaData = message.imageMetaData;
   const image_id = imageMetaData.previewId;
   const control_msg = controlMessages.find(msg => msg.hasOwnProperty('id') && msg.id.startsWith(image_id));
   if (!control_msg) {
     return { 'error': 'Failed to fetch data - missing control message for that image' };
   }
-  const cached = await document.cacheDb.getItem(`${image_id}_cache`);
-  let data;
-  if (cached === null) {
-    data = await downloadImage(control_msg, image_id, cache);
-  } else {
-    console.log('Loading image data from cache')
-    data = cached;
-  }
+
+  let data = await downloadImage(control_msg);
   const iv = data.iv;
   const salt = data.salt;
   const image_key = await getImageKey(imageMetaData.previewKey, salt);
