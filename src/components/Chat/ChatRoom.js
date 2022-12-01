@@ -16,6 +16,7 @@ import FirstVisitDialog from "../Modals/FirstVisitDialog";
 import RenderSend from "./RenderSend";
 import RenderComposer from "./RenderComposer";
 import { observer } from "mobx-react"
+import { metadata } from 'core-js/fn/reflect';
 const SB = require('snackabra')
 
 @observer
@@ -142,7 +143,8 @@ class ChatRoom extends React.Component {
     this.setState({ img: message.image, openPreview: true })
     try {
       console.log(message)
-      this.sbContext.SB.storage.retrieveDataFromMessage(message.sign, this.state.controlMessages).then((data) => {
+      this.sbContext.SB.storage.retrieveImage(message.imageMetaData,
+        this.state.controlMessages).then((data) => {
         console.log(data)
         if (data.hasOwnProperty('error')) {
           //activeChatContext.sendSystemMessage('Could not open image: ' + data['error']);
@@ -209,30 +211,32 @@ class ChatRoom extends React.Component {
 
     Promise.all(arrayBufferPromises).then((a) => {
       a.forEach((ab, i) => {
-        // mtg: We are sending the message here missing the id of the image, I think we can use the signature 
-        let sbm = new SB.SBMessage(this.sbContext.socket, '', this.state.files[i].restrictedUrl)
-        sbm.contents.image = this.state.files[i].restrictedUrl
-        sbm.send().then(() => {
-          Promise.all([
-            this.sbContext.SB.storage.storeObject(ab, 'f', this.sbContext.activeroom),
-            this.sbContext.SB.storage.storeObject(ab, 'p', this.sbContext.activeroom)
-          ]).then(async (o) => {
-            console.log(o)
-            let sbm = new SB.SBMessage(this.sbContext.socket, '', this.state.files[i].restrictedUrl)
-            const imageMetadata = {
-              imageId: o[0].id,
-              imageKey: o[0].key,
-              previewId: o[1].id,
-              previewKey: o[1].key,
-            }
-            sbm.contents.id = o[1].id;
-            sbm.contents.verificationToken = await o[1].verification
-            sbm.contents.control = true;
-            sbm.contents.imageMetaData = imageMetadata; // psm should work
-            sbm.send();
-            // sbm.setImageMetadata(imageMetadata).then(() => {
-            //   sbm.send();
-            // })
+        // resize needs to be done
+        Promise.all([
+          // these return SBObjectHandle
+          this.sbContext.SB.storage.storeObject(ab, 'f', this.sbContext.activeroom),
+          this.sbContext.SB.storage.storeObject(ab, 'p', this.sbContext.activeroom)
+        ]).then((o) => {
+          // mtg: We are sending the message here missing the id of the image, I think we can use the signature 
+          let sbm = new SB.SBMessage(this.sbContext.socket)
+          // populate
+          sbm.contents.image = this.state.files[i].restrictedUrl
+          const imageMetaData = {
+            imageId: o[0].id,
+            imageKey: o[0].key,
+            previewId: o[1].id,
+            previewKey: o[1].key,
+          }
+          sbm.contents.imageMetaData = imageMetaData;
+          sbm.send(); // and no we don't need to wait
+          o[1].verification.then((previewVerification) => {
+            // now the preview (up to 2MiB) has been safely stored
+            let controlMessage = new SB.SBMessage(this.sbContext.socket);
+            // controlMessage.imageMetaData = imageMetaData;
+            controlMessage.control = true;
+            controlMessage.verificationToken = previewVerification;
+            controlMessage.contents.id = o[1].id;
+            controlMessage.send();
           }).finally(() => {
             if (i === arrayBufferPromises.length - 1) {
               this.setState({ uploading: false })

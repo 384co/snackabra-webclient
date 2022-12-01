@@ -39,6 +39,9 @@ You need to copy the template ".env" file to the root:
 See below (Private Servers) for details: this file points your
 webclient to your preferred ``snackabra`` servers (room and storage).
 
+Currently you also need to clone ''mobx-snackabra-store'' into the
+top directory (this will become an npm package).
+
 Once done, you can simply:
 
 ::
