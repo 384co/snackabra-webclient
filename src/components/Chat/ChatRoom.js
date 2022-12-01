@@ -142,7 +142,6 @@ class ChatRoom extends React.Component {
   openImageOverlay = (message) => {
     this.setState({ img: message.image, openPreview: true })
     try {
-      console.log(message)
       retrieveData(message, this.state.controlMessages).then((data) => {
         console.log(data)
         if (data.hasOwnProperty('error')) {
