@@ -1,28 +1,22 @@
 import * as React from 'react';
 import { IconButton } from "@mui/material";
 import AttachmentIcon from '@mui/icons-material/Attachment';
-import { getFileData, restrictPhoto } from "../../utils/snackabra-js/ImageProcessor";
+import { SBImage } from "../../utils/ImageProcessor";
 
-class FileAttachment {
-  data
-  dataUrl
-  restricted
-  restrictedUrl
-
-  constructor(input) {
-    return new Promise(async (resolve) => {
-      const b64url = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.readAsDataURL(input);
+const getSbImage = (file) => {
+  return new Promise((resolve) => {
+    const sbImage = new SBImage(file);
+    queueMicrotask(() => {
+      const SBImageCanvas = document.createElement('canvas');
+      sbImage.loadToCanvas(SBImageCanvas).then((c) => {
+        sbImage.aspectRatio.then((r) => {
+          sbImage.aspectRatio = r
+          resolve(sbImage)
+        });
       });
-      this.dataUrl = b64url
-      this.data = input
-      this.restricted = await restrictPhoto(input, 15, "image/jpeg", 0.92)
-      this.restrictedUrl = await getFileData(this.restricted, 'url')
-      resolve(this)
-    })
-  }
+    });
+
+  })
 }
 
 function RenderAttachmentIcon(props) {
@@ -33,7 +27,7 @@ function RenderAttachmentIcon(props) {
       const files = []
       for (let i in e.target.files) {
         if (typeof e.target.files[i] === 'object') {
-          const attachment = await new FileAttachment(e.target.files[i])
+          const attachment = await getSbImage(e.target.files[i])
           files.push(attachment)
 
         }

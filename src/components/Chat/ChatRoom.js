@@ -16,7 +16,7 @@ import FirstVisitDialog from "../Modals/FirstVisitDialog";
 import RenderSend from "./RenderSend";
 import RenderComposer from "./RenderComposer";
 import { observer } from "mobx-react"
-import { saveImage, retrieveData } from '../../utils/snackabra-js/ImageProcessor';
+import { getStorePromises, retrieveData } from "../../utils/ImageProcessor";
 const SB = require('snackabra')
 
 @observer
@@ -186,40 +186,38 @@ class ChatRoom extends React.Component {
   sendFiles = async (giftedMessage) => {
     this.setState({ uploading: true })
     const fileMessages = [];
-    const arrayBufferPromises = [];
+    const filesArray = [];
     this.state.files.forEach(async (file, i) => {
 
       const message = {
         createdAt: new Date().toString(),
         text: "",
-        image: file.restrictedUrl,
+        image: file.url,
         user: this.sbContext.user,
         _id: 'sending_' + giftedMessage[0]._id
       }
       this.sending[message._id] = message._id
       fileMessages.push(message)
-      arrayBufferPromises.push(file.data)
-      console.log(file.data)
-      // this.sbContext.SB.storage.storeObject(file.arrayBuffer).then(()=>{
-
-      // })
-      //this.SB.sendFile(file.data)
+      filesArray.push(file)
     })
     this.setState({ messages: [...this.state.messages, ...fileMessages] })
-    for (let x in arrayBufferPromises) {
-      const metadata = await saveImage(arrayBufferPromises[x], this.sbContext.activeroom)
+    for (let x in filesArray) {
+      const sbImage = filesArray[x]
+      const storePromises = await getStorePromises(sbImage, this.sbContext.activeroom)
       let sbm = new SB.SBMessage(this.sbContext.socket)
       // populate
-      sbm.contents.image = this.state.files[x].restrictedUrl
+      sbm.contents.image = this.state.files[x].url
       const imageMetaData = {
-        imageId: metadata.full,
-        imageKey: metadata.fullKey,
-        previewId: metadata.preview,
-        previewKey: metadata.previewKey,
+        imageId: sbImage.fullId,
+        imageKey: sbImage.fullKey,
+        previewId: sbImage.previewId,
+        previewKey: sbImage.previewKey,
       }
       sbm.contents.imageMetaData = imageMetaData;
       sbm.send(); // and no we don't need to wait
-      Promise.all([metadata.previewStorePromise]).then((previewVerification) => {
+      Promise.all([storePromises.previewStorePromise]).then((previewVerification) => {
+        console.log(previewVerification)
+        console.info('Preview image uploaded')
         // now the preview (up to 2MiB) has been safely stored
         let controlMessage = new SB.SBMessage(this.sbContext.socket);
         // controlMessage.imageMetaData = imageMetaData;
@@ -228,9 +226,12 @@ class ChatRoom extends React.Component {
         controlMessage.contents.id = imageMetaData.previewId;
         controlMessage.send();
       }).finally(() => {
-        console.log(Number(x), arrayBufferPromises.length - 1)
-        metadata.fullStorePromise.then(console.log)
-        if (Number(x) === arrayBufferPromises.length - 1) {
+        queueMicrotask(() => {
+          storePromises.fullStorePromise.then(() => {
+            console.info('Full image uploaded')
+          })
+        });
+        if (Number(x) === filesArray.length - 1) {
           this.setState({ uploading: false })
           this.removeInputFiles()
         }
@@ -371,6 +372,10 @@ class ChatRoom extends React.Component {
 
   }
 
+  updateFiles = (files) => {
+    this.setState({ files: files })
+  }
+
   render() {
     const attachMenu = Boolean(this.state.anchorEl);
     return (
@@ -423,6 +428,7 @@ class ChatRoom extends React.Component {
           renderChatFooter={() => {
             return <RenderChatFooter removeInputFiles={this.removeInputFiles}
               files={this.state.files}
+              setFiles={this.updateFiles}
               uploading={this.state.uploading}
               loading={this.state.loading} />
           }}
