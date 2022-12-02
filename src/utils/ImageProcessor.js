@@ -243,7 +243,6 @@ export async function _restrictPhoto(maxSize, _c, _b1) {
     _b1 = await new Promise((resolve) => {
       _c.toBlob(resolve, imageType, qualityArgument);
     });
-    _size = _b1.size;
     _old_size = _size;
     _size = _b1.size;
     // workingDots();
