@@ -28,9 +28,9 @@ const RoomMenu = (props) => {
   const copy = async () => {
     console.log(window.location)
     if ('clipboard' in navigator) {
-      await navigator.clipboard.writeText(window.location.origin + `/r/${roomId}`)
+      await navigator.clipboard.writeText(window.location.origin + '/r/' + props.roomId)
     } else {
-      document.execCommand('copy', true, window.location.origin + `/r/${roomId}`)
+      document.execCommand('copy', true, window.location.origin + '/r/' + props.roomId)
     }
     Notifications.setMessage('Room URL copied to clipboard!');
     Notifications.setSeverity('success');
