@@ -70,6 +70,12 @@ const RenderBubble = (props) => {
           borderColor: "red",
         }
       })
+    } else if (props.currentMessage.user._id === 'system') {
+      updateProps({
+        both: {
+          borderColor: "gray",
+        }
+      })
     } else if (props.currentMessage._id.match(/^sending_/)) {
       updateProps({
         both: {
