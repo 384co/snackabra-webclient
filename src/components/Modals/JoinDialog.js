@@ -52,9 +52,9 @@ const JoinDialog = (props) => {
       }
 
     }else{
-      console.log(window.location.origin + "/" + roomId)
+      console.log(window.location.origin + "/r/" + roomId)
       if(roomId.length === 64){
-      window.location.replace(window.location.origin + "/" + roomId)
+      window.location.replace(window.location.origin + "/r/" + roomId)
       setRoomId("");
       props.onClose()
       }else{
