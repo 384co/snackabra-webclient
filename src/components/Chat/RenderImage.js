@@ -46,6 +46,11 @@ const RenderImage = (props) => {
   const [imageCopied, setImageCopied] = React.useState(false)
   const copyImage = async (message) => {
     if ('clipboard' in navigator) {
+      // Write any data we may need to the clipboard here.
+      // Currently, we copy only the image metadata -- we may need to construct
+      // a payload that indicates this is snackabra image metadata, so when we
+      // paste this into a snackabra room, it will be smart enough to know what
+      // to do.
       await navigator.clipboard.writeText(JSON.stringify(message.imageMetaData))
 
       setImageCopied(true)
