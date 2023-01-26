@@ -50,7 +50,7 @@ const ChangeNameDialog = observer((props) => {
             onChange={updateUsername} fullWidth />
         </Grid>
         <StyledButton variant={'outlined'} onClick={saveUserName}>Save</StyledButton>
-        <StyledButton variant={'outlined'} onClick={setMe}>Me</StyledButton>
+        {/* <StyledButton variant={'outlined'} onClick={setMe}>Me</StyledButton> */}
       </Grid>
     </ResponsiveDialog>
   )
