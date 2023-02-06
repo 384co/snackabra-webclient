@@ -4,7 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import ImageViewer from './ImageViewier';
 
 export default function ImageCarousel(props) {
-    const { img,images, sbContext, controlMessages } = props
+    const { img, images, sbContext, controlMessages } = props
     const [imageList, setImageList] = React.useState(images);
     const theme = useTheme();
     const [value, setValue] = React.useState(null);
@@ -15,8 +15,8 @@ export default function ImageCarousel(props) {
 
     React.useEffect(() => {
         const _images = images.reverse()
-        for(let i in _images){
-            if(_images[i]._id === img._id){
+        for (let i in _images) {
+            if (_images[i]._id === img._id) {
                 handleChangeIndex(Number(i))
                 break;
             }
@@ -28,12 +28,13 @@ export default function ImageCarousel(props) {
     return (
 
         <SwipeableViews
+            id={'image-carousel'}
             axis={theme.direction === 'rtl' ? 'x-reverse' : 'x'}
             index={value}
             disableLazyLoading
             resistance
             onChangeIndex={handleChangeIndex}
-            style={{ padding: 0 }}
+            style={{ padding: 0, height: '100%' }}
             disabled={!!swipeInhibiter}
         >
             {imageList.map((item, index) => {

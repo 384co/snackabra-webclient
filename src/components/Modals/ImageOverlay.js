@@ -42,7 +42,7 @@ export default function ImageOverlay(props) {
       }
 
 
-      <DialogContent sx={{ p: 0, bgcolor: 'black' }} style={{ touchAction: 'none' }} className={`flex fill center`}>
+      <DialogContent sx={{ p: 0, bgcolor: 'black' }} style={{ touchAction: 'none' }}>
 
         <ImageCarousel {...props} />
       </DialogContent>
