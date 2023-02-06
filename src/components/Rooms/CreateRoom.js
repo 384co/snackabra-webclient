@@ -5,6 +5,7 @@ import { StyledButton } from "../../styles/Buttons";
 import CircularProgress from '@mui/material/CircularProgress';
 import { useState, useContext } from "react"
 import NotificationContext from "../../contexts/NotificationContext";
+import NavBarActionContext from "../../contexts/NavBarActionContext";
 import FirstVisitDialog from "../Modals/FirstVisitDialog";
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
@@ -14,11 +15,13 @@ import OutlinedInput from '@mui/material/OutlinedInput';
 import IconButton from '@mui/material/IconButton';
 import { observer } from "mobx-react"
 import { SnackabraContext } from "mobx-snackabra-store";
-
+import { useNavigate } from "react-router-dom";
 
 const CreateRoom = observer((props) => {
+  const NavAppBarContext = React.useContext(NavBarActionContext)
   const sbContext = React.useContext(SnackabraContext);
   const Notifications = useContext(NotificationContext);
+  const navigate = useNavigate();
   const isFirefox = typeof InstallTrigger !== 'undefined';
   const [secret, setSecret] = useState('');
   const [roomId, setRoomId] = useState('');
@@ -39,9 +42,8 @@ const CreateRoom = observer((props) => {
     Notifications.setSeverity('success');
     Notifications.setOpen(true)
     setCreating(false)
-    setTimeout(() => {
-      window.location.href = window.location.origin + `/${roomId}`
-    }, 750)
+    NavAppBarContext.setMenuOpen(false)
+    navigate("/" + roomId);
 
   }
 
@@ -55,6 +57,7 @@ const CreateRoom = observer((props) => {
   const createRoom = async () => {
     setCreating(true)
     sbContext.createRoom(secret).then((channel) => {
+      sbContext.socket.close()
       setRoomId(channel)
       setOpenFirstVisit(true)
     }).catch((e) => {
@@ -102,7 +105,7 @@ const CreateRoom = observer((props) => {
             type={!isFirefox ? 'text' : showPassword ? 'text' : 'password'}
             value={secret}
             error={errored}
-            inputProps={{ autoFocus: true, autoComplete: "off",className: showPassword ? 'text-field' : 'password-field' }}
+            inputProps={{ autoFocus: true, autoComplete: "off", className: showPassword ? 'text-field' : 'password-field' }}
             onKeyUp={(e) => {
               if (e.keyCode === 13) {
                 createRoom()

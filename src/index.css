@@ -1,3 +1,6 @@
+html, body {
+  overscroll-behavior-x: none;
+}
 a {
   color: inherit;
   text-decoration: none;
@@ -46,10 +49,11 @@ input::-webkit-credentials-auto-fill-button {
 body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale
+  -moz-osx-font-smoothing: grayscale;
+  touch-action: none;
 }
 
-* {
+/* * {
   scrollbar-width: thin
 }
 
@@ -60,6 +64,10 @@ body {
 ::-webkit-scrollbar-thumb {
   background-color: #d3d3d3;
   border-radius: 20px
+} */
+
+div[data-testid="GC_WRAPPER"]{
+  width: 100%
 }
 
 #root,
@@ -67,4 +75,29 @@ body,
 html {
   height: 100%;
   overflow: hidden
+}
+
+.RoomSwipable .MuiBox-root {
+  padding: 0
+}
+
+.sb-tab-link {
+  text-transform: none;
+}
+
+.flex {
+  display: flex;
+  align-items: center;
+}
+
+.flex.fill {
+  height: 100%;
+}
+
+.flex.center {
+  justify-content: center;
+}
+
+#image-carousel .react-swipeable-view-container {
+  height: 100%
 }

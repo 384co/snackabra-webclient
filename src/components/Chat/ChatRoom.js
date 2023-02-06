@@ -1,36 +1,41 @@
 /* Copyright (c) 2021 Magnusson Institute, All Rights Reserved */
 
 import * as React from 'react';
-import { GiftedChat } from 'react-native-gifted-chat';
+import GiftedChatCustom from './GiftedChatCustom';
 import RenderBubble from "./RenderBubble";
 import RenderAvatar from "./RenderAvatar";
 import RenderAttachmentIcon from "./RenderAttachmentIcon";
 import ImageOverlay from "../Modals/ImageOverlay";
 import RenderImage from "./RenderImage";
 import ChangeNameDialog from "../Modals/ChangeNameDialog";
-import MotdDialog from "../Modals/MotdDialog";
 import RenderChatFooter from "./RenderChatFooter";
 import RenderMessage from "./RenderMessage";
+import RenderMessageText from "./RenderMessageText";
 import RenderTime from "./RenderTime";
-import { Dimensions, } from "react-native";
-// import AttachMenu from "./AttachMenu";
+import { Dimensions } from "react-native";
+import AdminDialog from "../Modals/AdminDialog";
 import FirstVisitDialog from "../Modals/FirstVisitDialog";
 import RenderSend from "./RenderSend";
 import WhisperUserDialog from "../Modals/WhisperUserDialog";
 import RenderComposer from "./RenderComposer";
+import DropZone from "../DropZone";
 import Queue from "../../utils/Queue";
+import { toJS } from "mobx"
 import { observer } from "mobx-react"
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isMobile } from 'react-device-detect';
+import { Navigate } from "react-router-dom";
 
 const q = new Queue()
 const _r = new Queue()
 const SB = require('snackabra')
 
 @observer
-class ChatRoom extends React.Component {
+class ChatRoom extends React.PureComponent {
+  sbContext = this.props.sbContext
   sending = {}
   state = {
+    openAdminDialog: false,
     openWhisper: false,
     openPreview: false,
     openChangeName: false,
@@ -40,27 +45,29 @@ class ChatRoom extends React.Component {
     anchorEl: null,
     img: '',
     imgLoaded: false,
-    messages: [],
+    messages: this.sbContext.rooms[this.props.roomId]?.messages ? toJS(this.sbContext.rooms[this.props.roomId].messages) : [],
     controlMessages: [],
     roomId: this.props.roomId || 'offline',
     files: [],
     images: [],
     loading: false,
     uploading: false,
-    user: {},
+    user: this.sbContext.rooms[this.props.roomId]?.userName && this.sbContext.rooms[this.props.roomId]?.key ? { _id: JSON.stringify(this.sbContext.rooms[this.props.roomId]?.key), name: this.sbContext.rooms[this.props.roomId]?.userName } : {},
     height: 0,
     visibility: 'visible',
-    replyTo: null
+    replyTo: null,
+    dzRef: null,
+    to: null
   }
-  sbContext = this.props.sbContext
+
 
   componentDidMount() {
-
+    console.log(this.props.roomId)
     const handleResize = (e) => {
       const { height } = Dimensions.get('window')
       this.setState({ height: height })
     }
-
+    window.saveUsername = this.saveUsername
     window.addEventListener('resize', handleResize)
     window.addEventListener('orientationchange', handleResize)
     window.addEventListener('touchmove', (e) => {
@@ -87,6 +94,53 @@ class ChatRoom extends React.Component {
     })
     this.processQueue()
     this.processSQueue()
+  }
+
+  componentDidUpdate(prevProps) {
+
+    // Typical usage (don't forget to compare props):
+    if (this.props.openAdminDialog !== prevProps.openAdminDialog) {
+      this.setOpenAdminDialog(this.props.openAdminDialog);
+    }
+    if (prevProps.roomId !== this.props.roomId) {
+      this.sbContext.getChannel(this.props.roomId).then((data) => {
+        if (!data?.key) {
+          this.setState({ openFirstVisit: true })
+        } else {
+
+          this.connect();
+
+        }
+      })
+    }
+  }
+
+  componentWillUnmount() {
+    this.setState({
+      openAdminDialog: false,
+      openWhisper: false,
+      openPreview: false,
+      openChangeName: false,
+      openFirstVisit: false,
+      changeUserNameProps: {},
+      openMotd: false,
+      anchorEl: null,
+      img: '',
+      imgLoaded: false,
+      messages: this.sbContext.rooms[this.props.roomId]?.messages ? toJS(this.sbContext.rooms[this.props.roomId].messages) : [],
+      controlMessages: [],
+      roomId: this.props.roomId || 'offline',
+      files: [],
+      images: [],
+      loading: false,
+      uploading: false,
+      user: this.sbContext.rooms[this.props.roomId]?.userName && this.sbContext.rooms[this.props.roomId]?.key ? { _id: JSON.stringify(this.sbContext.rooms[this.props.roomId]?.key), name: this.sbContext.rooms[this.props.roomId]?.userName } : {},
+      height: 0,
+      visibility: 'visible',
+      replyTo: null,
+      dzRef: null,
+      to: null
+    })
   }
   /**
    * Queue helps with order outgoing messages
@@ -134,46 +188,42 @@ class ChatRoom extends React.Component {
       messageCallback: this.recieveMessages
     }
     this.sbContext.connect(options).then(() => {
-      this.setState({ messages: this.sbContext.messages }, () => {
-        this.sbContext.getOldMessages(0).then((r) => {
-          let controlMessages = [];
-          let messages = [];
-          r.forEach((m, i) => {
-            if (!m.control) {
-              const user_pubKey = m.user._id;
-              m.user._id = JSON.stringify(m.user._id);
-              m.user.name = this.sbContext.contacts[user_pubKey.x + ' ' + user_pubKey.y] !== undefined ? this.sbContext.contacts[user_pubKey.x + ' ' + user_pubKey.y] : m.user.name;
-              m.sender_username = m.user.name;
-              m.createdAt = new Date(parseInt(m.timestampPrefix, 2));
-              messages.push(m)
-            } else {
-              controlMessages.push(m)
-            }
-
-          })
-          this.setState({ controlMessages: controlMessages })
-          if (this.sbContext.motd !== '') {
-            this.sendSystemInfo('MOTD: ' + this.props.sbContext.motd, (systemMessage) => {
-              this.sbContext.messages = messages
-              this.setState({ messages: [...messages, systemMessage] })
-            })
+      this.setState({ user: this.sbContext.user })
+      this.sbContext.getOldMessages(0).then((r) => {
+        let controlMessages = [];
+        let messages = [];
+        r.forEach((m, i) => {
+          if (!m.control) {
+            const user_pubKey = m.user._id;
+            m.user._id = JSON.stringify(m.user._id);
+            m.user.name = this.sbContext.contacts[user_pubKey.x + ' ' + user_pubKey.y] !== undefined ? this.sbContext.contacts[user_pubKey.x + ' ' + user_pubKey.y] : m.user.name;
+            m.sender_username = m.user.name;
+            m.createdAt = new Date(parseInt(m.timestampPrefix, 2));
+            messages.push(m)
           } else {
-            this.sbContext.messages = messages
-            this.setState({ messages: [...messages] })
+            controlMessages.push(m)
           }
 
         })
+        this.setState({ controlMessages: controlMessages })
+        if (this.sbContext.motd !== '') {
+          this.sendSystemInfo('MOTD: ' + this.props.sbContext.motd, (systemMessage) => {
+            this.sbContext.messages = messages
+            this.setState({ messages: [...messages, systemMessage] })
+          })
+        } else {
+          this.sbContext.messages = messages
+          this.setState({ messages: this.sbContext.messages })
+        }
+
       })
+
     }).catch((e) => {
       if (e.match(/^No such channel on this server/)) {
-        let i = 5
-        setInterval(() => {
-          this.notify(e + ` Channel ID: ${this.props.roomId}} redirecting you in ${i} seconds`, 'error')
-          i--
-        }, 1000)
+        this.notify(e + ` Channel ID: ${this.props.roomId}}`, 'error')
 
         setTimeout(() => {
-          window.location.replace(window.location.origin)
+          this.setState({ to: "/" })
         }, 5000)
       }
     })
@@ -183,7 +233,8 @@ class ChatRoom extends React.Component {
     if (msg) {
       if (!msg.control) {
         const messages = this.state.messages.reduce((acc, curr) => {
-          if (!curr._id.match(/^sending/)) {
+          const msg_id = curr._id.toString()
+          if (!msg_id.match(/^sending/)) {
             acc.push(curr);
           } else {
             delete this.sending[curr._id]
@@ -205,27 +256,18 @@ class ChatRoom extends React.Component {
   }
 
   openImageOverlay = (message) => {
-    this.setState({ img: message.image, openPreview: true })
-    console.log(this.sbContext)
-    console.log("image metadata")
-    console.log(message.imageMetaData)
-    this.sbContext.SB.storage.retrieveImage(message.imageMetaData, this.state.controlMessages).then((data) => {
-      console.log(data)
-      if (data.hasOwnProperty('error')) {
-        console.error(data['error'])
-        this.notify('Could not load full size image', 'warning')
-      } else {
-        this.setState({ img: data['url'], imgLoaded: true })
+    this.props.inhibitSwipe(1)
+    let _images = [];
+    for (let x in this.state.messages) {
+      if (this.state.messages[x].image !== '') {
+        _images.push(this.state.messages[x])
       }
-    }).catch((error) => {
-      console.error('openPreview() exception: ' + error.message);
-      this.notify('Could not load full size image', 'warning')
-      this.setState({ openPreview: false })
-    })
-
+    }
+    this.setState({ img: message, openPreview: true, images: _images })
   }
 
   imageOverlayClosed = () => {
+    this.props.inhibitSwipe(0)
     this.setState({ openPreview: false, img: '', imgLoaded: false })
   }
 
@@ -261,7 +303,7 @@ class ChatRoom extends React.Component {
       _files.forEach((file, i) => {
 
         const message = {
-          createdAt: new Date().toString(),
+          createdAt: new Date(),
           text: "",
           image: file.url,
           user: this.sbContext.user,
@@ -278,6 +320,7 @@ class ChatRoom extends React.Component {
           let sbm = new SB.SBMessage(this.sbContext.socket)
           // populate
           sbm.contents.image = _files[x].thumbnail
+          console.log(sbImage.objectMetadata)
           const imageMetaData = {
             imageId: sbImage.objectMetadata.full.id,
             imageKey: sbImage.objectMetadata.full.key,
@@ -300,13 +343,13 @@ class ChatRoom extends React.Component {
               queueMicrotask(() => {
                 storePromises.fullStorePromise.then((verificationPromise) => {
                   console.log(verificationPromise)
-                  verificationPromise.verification.then((verification) => {
+                  verificationPromise.verification.then((_f_verification) => {
                     console.log('Full image uploaded')
-                    let controlMessage = new SB.SBMessage(this.sbContext.socket);
-                    controlMessage.contents.control = true;
-                    controlMessage.contents.verificationToken = verification;
-                    controlMessage.contents.id = imageMetaData.imageId;
-                    q.enqueue(controlMessage)
+                    let _f_controlMessage = new SB.SBMessage(this.sbContext.socket);
+                    _f_controlMessage.contents.control = true;
+                    _f_controlMessage.contents.verificationToken = _f_verification;
+                    _f_controlMessage.contents.id = imageMetaData.imageId;
+                    q.enqueue(_f_controlMessage)
                   });
                 });
               })
@@ -344,6 +387,7 @@ class ChatRoom extends React.Component {
     const systemMessage = {
       _id: this.state.messages.length,
       text: msg_string,
+      createdAt: new Date(),
       user: { _id: 'system', name: 'System Message' },
       whispered: false,
       verified: true,
@@ -363,6 +407,7 @@ class ChatRoom extends React.Component {
       messages: [...this.state.messages, {
         _id: `${this.state.messages.length}_${Date.now()}`,
         user: { _id: 'system', name: 'System Message' },
+        createdAt: new Date(),
         text: message + '\n\n Details in console'
       }]
     })
@@ -381,7 +426,7 @@ class ChatRoom extends React.Component {
 
       document.getElementById('fileInput').value = '';
     }
-    this.setState({ files: [], images: [] })
+    this.setState({ files: [] })
   }
 
   showLoading = (bool) => {
@@ -397,122 +442,176 @@ class ChatRoom extends React.Component {
     const user_pubKey = JSON.parse(_id);
     contacts[user_pubKey.x + ' ' + user_pubKey.y] = newUsername;
     this.sbContext.contacts = contacts;
-    const _messages = this.state.messages.map((message) => {
-      if (message.user._id === _id) {
-        message.user.name = newUsername;
-        message.sender_username = newUsername;
+    const _m = Object.assign(this.state.messages)
+    _m.forEach((_message, i) => {
+      console.log(_message, i)
+      if (_message.user._id === _id) {
+        _message.user.name = newUsername;
+        _message.sender_username = newUsername;
+        _m[i] = _message;
       }
-      return message;
+    })
+
+    this.setState({ messages: _m, changeUserNameProps: {}, openChangeName: false }, () => {
+      this.sbContext.messages = _m;
     });
-    this.setState({ messages: [] }, () => {
-      this.setState({ messages: _messages, changeUserNameProps: {} })
-      this.sbContext.messages = _messages;
-    });
+
   }
 
   setFiles = (files) => {
-    this.setState({ files: files })
-  }
-
-  setImageFiles = (files) => {
-    this.setState({ images: files })
+    this.setState({ files: [...files, ...this.state.files] })
   }
 
   closeWhisper = () => {
     this.setState({ openWhisper: false })
   }
+
+  setOpenAdminDialog = (opened) => {
+    this.setState({ openAdminDialog: opened })
+  }
+
+  setDropzoneRef = (ref) => {
+
+    if (ref && !this.state.dzRef) {
+      console.log(ref)
+      this.setState({ dzRef: ref })
+    }
+
+  }
+
+  inputErrored = (errored) => {
+    this.setState({ inputError: errored })
+  }
+
   render() {
+    if (this.state.to) {
+      return (<Navigate to={this.state.to} />)
+    }
+    let inverted = false;
+    let messages = this.state.messages
+    try {
+      const _f_message = this.state.messages[0];
+      const _l_message = this.state.messages[this.state.messages.length - 1];
+      messages = _f_message && _f_message?.createdAt?.getTime() < _l_message?.createdAt?.getTime() ? this.state.messages.reverse() : this.state.messages
+      inverted = true;
+    } catch (e) {
+      console.warn(e)
+    }
+
+
     return (
 
-      <SafeAreaView style={{
+      <SafeAreaView id={'sb_chat_area'} style={{
         flexGrow: 1,
         flexBasis: 'fit-content',
         height: isMobile && !this.state.typing ? this.state.height - 36 : this.state.height,
+        width: '100%',
         paddingTop: 48
       }}>
-        <WhisperUserDialog replyTo={this.state.replyTo} open={this.state.openWhisper} onClose={this.closeWhisper} />
-        <ImageOverlay open={this.state.openPreview} img={this.state.img} imgLoaded={this.state.imgLoaded}
-          onClose={this.imageOverlayClosed} />
-        <ChangeNameDialog {...this.state.changeUserNameProps} open={this.state.openChangeName} onClose={(userName, _id) => {
-          this.saveUsername(userName, _id)
-          this.setState({ openChangeName: false })
-        }} />
-        <MotdDialog open={this.state.openMotd} roomName={this.props.roomName} />
-        {/* <AttachMenu open={attachMenu} handleClose={this.handleClose} /> */}
-        <FirstVisitDialog open={this.state.openFirstVisit} sbContext={this.sbContext} messageCallback={this.recieveMessages} onClose={(username) => {
-          this.setState({ openFirstVisit: false })
-          this.connect(username)
-        }} roomId={this.state.roomId} />
-        <GiftedChat
-          messages={this.state.messages}
-          onSend={this.sendMessages}
-          // timeFormat='L LT'
-          user={this.sbContext.user}
-          inverted={false}
-          alwaysShowSend={true}
-          loadEarlier={this.props.sbContext.moreMessages}
-          isLoadingEarlier={this.props.sbContext.loadingMore}
-          onLoadEarlier={this.getOldMessages}
-          renderActions={(props) => {
-            return <RenderAttachmentIcon
-              {...props}
-              addFile={this.loadFiles}
-              openAttachMenu={this.openAttachMenu}
-              showLoading={this.showLoading} />
-          }}
-          //renderUsernameOnMessage={true}
-          // infiniteScroll={true}   // This is not supported for web yet
-          renderAvatar={RenderAvatar}
-          renderMessageImage={(props) => {
-            return <RenderImage
-              {...props}
-              openImageOverlay={this.openImageOverlay}
-              downloadImage={this.downloadImage}
-              controlMessages={this.state.controlMessages}
-              sendSystemMessage={this.sendSystemMessage}
-              notify={this.notify}
-              sbContext={this.sbContext} />
-          }}
-          renderMessageText={RenderMessage}
-          scrollToBottom={true}
-          showUserAvatar={true}
-          onPressAvatar={this.promptUsername}
-          onLongPressAvatar={(context) => {
-            return this.handleReply(context)
-          }}
-          renderChatFooter={() => {
-            return <RenderChatFooter removeInputFiles={this.removeInputFiles}
-              files={this.state.files}
-              setFiles={this.setFiles}
-              uploading={this.state.uploading}
-              loading={this.state.loading} />
-          }}
-          renderBubble={(props) => {
-            return <RenderBubble {...props} keys={{ ...this.props.sbContext.socket.keys, ...this.props.sbContext.userKey }}
-              socket={this.props.sbContext.socket}
-              SB={this.SB} />
-          }}
-          renderSend={RenderSend}
-          renderComposer={(props) => {
-            return <RenderComposer {...props} 
-            onFocus={()=>{
-              this.setState({typing: true})
+        <DropZone notify={this.notify} dzRef={this.setDropzoneRef} addFile={this.loadFiles} showLoading={this.showLoading} overlayOpen={this.state.openPreview}>
+          <AdminDialog open={this.state.openAdminDialog} sendSystemInfo={this.sendSystemInfo} onClose={() => {
+            this.setOpenAdminDialog(false)
+            this.props.onCloseAdminDialog()
+          }} />
+          <WhisperUserDialog replyTo={this.state.replyTo} open={this.state.openWhisper} onClose={this.closeWhisper} />
+          <ImageOverlay
+            sbContext={this.sbContext}
+            images={this.state.images}
+            open={this.state.openPreview}
+            img={this.state.img}
+            controlMessages={this.state.controlMessages}
+            imgLoaded={this.state.imgLoaded}
+            onClose={this.imageOverlayClosed} />
+          <ChangeNameDialog {...this.state.changeUserNameProps} open={this.state.openChangeName} onClose={(userName, _id) => {
+            this.saveUsername(userName, _id)
+            // this.setState({ openChangeName: false })
+          }} />
+          {/* <AttachMenu open={attachMenu} handleClose={this.handleClose} /> */}
+          <FirstVisitDialog open={this.state.openFirstVisit} sbContext={this.sbContext} messageCallback={this.recieveMessages} onClose={(username) => {
+            this.setState({ openFirstVisit: false })
+            this.connect(username)
+          }} roomId={this.state.roomId} />
+          <GiftedChatCustom
+            isKeyboardInternallyHandled={false}
+            wrapInSafeArea={false}
+            className={'sb_chat_container'}
+            style={{
+              width: '100%'
             }}
-            onBlur={()=>{
-              this.setState({typing: false})
+            messages={messages}
+            onSend={this.sendMessages}
+            // timeFormat='L LT'
+            user={this.state.user}
+            inverted={inverted}
+            alwaysShowSend={true}
+            loadEarlier={this.props.sbContext.moreMessages}
+            isLoadingEarlier={this.props.sbContext.loadingMore}
+            onLoadEarlier={this.getOldMessages}
+            renderMessage={RenderMessage}
+            renderActions={(props) => {
+              return <RenderAttachmentIcon
+                {...props}
+                dzRef={this.state.dzRef}
+                openAttachMenu={this.openAttachMenu}
+                showLoading={this.showLoading} />
             }}
-            setFiles={this.setFiles} 
-            filesAttached={this.state.files.length > 0} 
-            showLoading={this.showLoading} />
-          }}
-          onLongPress={() => false}
-          renderTime={RenderTime}
-          parsePatterns={(linkStyle) => [
-            { type: 'phone', style: {}, onPress: undefined }
-          ]}
-        />
+            //renderUsernameOnMessage={true}
+            // infiniteScroll={true}   // This is not supported for web yet
+            renderAvatar={RenderAvatar}
+            renderMessageImage={(props) => {
+              return <RenderImage
+                {...props}
+                openImageOverlay={this.openImageOverlay}
+                downloadImage={this.downloadImage}
+                controlMessages={this.state.controlMessages}
+                sendSystemMessage={this.sendSystemMessage}
+                notify={this.notify}
+                sbContext={this.sbContext} />
+            }}
+            renderMessageText={RenderMessageText}
+            scrollToBottom={true}
+            showUserAvatar={true}
+            onPressAvatar={this.promptUsername}
+            onLongPressAvatar={(context) => {
+              return this.handleReply(context)
+            }}
+            renderChatFooter={() => {
+              return <RenderChatFooter removeInputFiles={this.removeInputFiles}
+                files={this.state.files}
+                setFiles={this.setFiles}
+                uploading={this.state.uploading}
+                loading={this.state.loading} />
+            }}
+            renderBubble={(props) => {
+              return <RenderBubble {...props} keys={{ ...this.props.sbContext.socket.keys, ...this.props.sbContext.userKey }}
+                socket={this.props.sbContext.socket}
+                SB={this.SB} />
+            }}
+            renderSend={(props) => {
+              return <RenderSend {...props} inputError={this.state.inputError} />
+            }}
+            renderComposer={(props) => {
+              return <RenderComposer {...props}
+                inputErrored={this.inputErrored}
+                onFocus={() => {
+                  this.setState({ typing: true })
+                }}
+                onBlur={() => {
+                  this.setState({ typing: false })
+                }}
+                setFiles={this.setFiles}
+                filesAttached={this.state.files.length > 0}
+                showLoading={this.showLoading} />
+            }}
+            onLongPress={() => false}
+            keyboardShouldPersistTaps='always'
+            renderTime={RenderTime}
+            parsePatterns={(linkStyle) => [
+              { type: 'phone', style: {}, onPress: undefined }
+            ]}
+          />
+        </DropZone>
       </SafeAreaView>
-
     )
   }
 }

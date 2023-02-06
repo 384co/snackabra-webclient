@@ -1,6 +1,7 @@
 /* Copyright (c) 2021 Magnusson Institute, All Rights Reserved */
 
 import React from 'react';
+import { isMobile } from 'react-device-detect';
 import './index.css';
 import App from './App';
 import { createRoot } from 'react-dom/client';
@@ -9,10 +10,18 @@ import IndexedKV from "./utils/IndexedKV";
 const container = document.getElementById('root');
 const root = createRoot(container);
 
-// window.pinchZoomEvent = document.addEventListener('touchmove', function (event) {
-//   if (event.scale !== 1) { event.preventDefault(); }
-// }, { passive: false });
 
+window.addEventListener('touchmove', function (event) {
+  event.preventDefault();
+});
+
+// document.location.replace(window.location.href)
+// console.log(window.location)
+window.onpopstate = function (e) {
+
+  e.preventDefault();
+  window.history.go(1);
+}
 
 
 const localKV = new IndexedKV({ db: 'sb_files', table: 'files' })
