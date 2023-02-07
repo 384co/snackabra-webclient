@@ -10,6 +10,7 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import AddCommentIcon from '@mui/icons-material/AddComment';
 import FileUploadIcon from '@mui/icons-material/Folder';
+import EditNotificationsIcon from '@mui/icons-material/EditNotifications';
 import AddCircleOutlinedIcon from '@mui/icons-material/AddCircleOutlined';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -23,6 +24,7 @@ import JoinDialog from "../components/Modals/JoinDialog";
 import NotificationContext from "../contexts/NotificationContext";
 import ImportDialog from "../components/Modals/ImportDialog";
 import DataOperationsDialog from "../components/Modals/DataOperationsDialog";
+import GeneralNotificationSettingsDialog from '../components/Modals/NotificationSettingsDialog';
 import RoomMenu from "../components/Rooms/RoomMenu"
 import NavBarActionContext from "../contexts/NavBarActionContext";
 import { observer } from "mobx-react"
@@ -69,6 +71,7 @@ const ResponsiveDrawer = observer((props) => {
   const [roomId, setRoomId] = React.useState(false);
   const [openImportDialog, setOpenImportDialog] = React.useState(false);
   const [openDataOperations, setOpenDataOperations] = React.useState(false);
+  const [openNotificationOptions, setOpenNotificationOptions] = React.useState(false);
   const [openCreateDialog, setOpenCreateDialog] = React.useState(false);
   const [openAdminDialog, setOpenAdminDialog] = React.useState(false);
   const [openJoinDialog, setOpenJoinDialog] = React.useState(false);
@@ -199,6 +202,20 @@ const ResponsiveDrawer = observer((props) => {
           </ListItemButton>
         </ListItem>
 
+        {/* -------------------------------------- */}
+        <ListItem disablePadding>
+          <ListItemButton onClick={() => {
+            setOpenNotificationOptions(true)
+            NavAppBarContext.setMenuOpen(false)
+          }}>
+            <ListItemIcon>
+              <EditNotificationsIcon />
+            </ListItemIcon>
+            <ListItemText primary={'Notification Settings'} />
+          </ListItemButton>
+        </ListItem>
+
+
         <ListItem sx={{ display: !sbContext.admin ? 'none' : 'inherit' }} disablePadding>
           <ListItemButton onClick={() => {
             setOpenAdminDialog(true)
@@ -291,6 +308,12 @@ const ResponsiveDrawer = observer((props) => {
   return (
     <SafeAreaView sx={{ display: 'flex', p: 0 }}>
       <CssBaseline />
+      <GeneralNotificationSettingsDialog
+        open={openNotificationOptions}
+        onClose={() => {
+          setOpenNotificationOptions(false)
+        }}
+      />
       <DataOperationsDialog open={openDataOperations} onClose={() => {
         setOpenDataOperations(false)
       }} />
