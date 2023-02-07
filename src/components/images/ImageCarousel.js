@@ -11,6 +11,7 @@ import { useTheme } from '@mui/material/styles';
 import ImageViewer from './ImageViewier';
 import Slide from '@mui/material/Slide';
 import Paper from '@mui/material/Paper';
+import { isMobile } from 'react-device-detect';
 import { autoPlay, virtualize, bindKeyboard } from 'react-swipeable-views-utils';
 
 const EnhancedSwipeableViews = bindKeyboard(autoPlay(SwipeableViews));
@@ -72,14 +73,13 @@ export default function ImageCarousel(props) {
     }
 
     const showMediaControls = () => {
-        if (!!swipeInhibiter) return
+        if (!!swipeInhibiter || isMobile) return
         toggleShowControls(true)
         if (mouseMoveTimeout) clearTimeout(mouseMoveTimeout)
         mouseMoveTimeout = setTimeout(() => {
             toggleShowControls(false)
         }, 5000)
     }
-    console.log(!!!swipeInhibiter)
     return (
         <>
             <EnhancedSwipeableViews
