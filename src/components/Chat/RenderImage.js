@@ -2,6 +2,8 @@ import React from 'react';
 import { CircularProgress, Grid, IconButton } from "@mui/material";
 import InputIcon from '@mui/icons-material/Download';
 import CheckIcon from '@mui/icons-material/Check';
+import ContentCopy from '@mui/icons-material/ContentCopy'
+//import ShareIcon from '@mui/icons-material/Share'
 import { downloadFile } from '../../utils/misc'
 
 const styles = {
@@ -52,27 +54,67 @@ const RenderImage = (props) => {
       })
   }
 
+  const [imageCopied, setImageCopied] = React.useState(false)
+  const copyImage = async (message) => {
+    if ('clipboard' in navigator) {
+      // Write any data we may need to the clipboard here.
+      // Currently, we copy only the image metadata -- we may need to construct
+      // a payload that indicates this is snackabra image metadata, so when we
+      // paste this into a snackabra room, it will be smart enough to know what
+      // to do.
+      await navigator.clipboard.writeText(JSON.stringify(message.imageMetaData))
+
+      setImageCopied(true)
+      setTimeout(() => {
+        setImageCopied(false)
+      }, 2000)
+
+    } else {
+      console.log('Clipboard not supported...')
+    }
+  }
+
+
   if (typeof props.currentMessage.image === 'string') {
-    return (<Grid sx={{ cursor: 'pointer' }} >
-      {!isDling ?
-        <IconButton style={{ position: 'absolute', ...styles[props.position], top: '47%' }} onClick={() => { downloadImage(props.currentMessage) }} component="div"
-          aria-label="attach" size="large">
-          <InputIcon color={'primary'} />
-        </IconButton> : !downloaded ?
-          <IconButton style={{ position: 'absolute', ...styles[props.position], top: '47%' }} disabled component="div"
-            aria-label="attach" size="large">
-            <CircularProgress size={30} />
-          </IconButton> :
-          <IconButton style={{ position: 'absolute', ...styles[props.position], top: '47%' }} onClick={() => { downloadImage(props.currentMessage) }} component="div"
-            aria-label="attach" size="large">
-            <CheckIcon color={'primary'} />
-          </IconButton>
+    return (
+      <Grid container sx={{ cursor: 'pointer' }} >
+        <Grid item container>
+          <Grid item>
+            {!imageCopied ?
+              <IconButton style={{ position: 'absolute', ...styles[props.position], top: '27%' }} onClick={() => { copyImage(props.currentMessage) }} component="div"
+                  aria-label="attach" size="large">
+                <ContentCopy color={'primary'} />
+              </IconButton>
+            :
+              <IconButton style={{ position: 'absolute', ...styles[props.position], top: '27%' }} onClick={() => { copyImage(props.currentMessage) }} component="div"
+                  aria-label="attach" size="large">
+                <CheckIcon color={'primary'} />
+              </IconButton>
+            }
+          </Grid>
+          <Grid item>
+            {!isDling ?
+              <IconButton style={{ position: 'absolute', ...styles[props.position], top: '57%' }} onClick={() => { downloadImage(props.currentMessage) }} component="div"
+                aria-label="attach" size="large">
+                <InputIcon color={'primary'} />
+              </IconButton> : !downloaded ?
+                <IconButton style={{ position: 'absolute', ...styles[props.position], top: '57%' }} disabled component="div"
+                  aria-label="attach" size="large">
+                  <CircularProgress size={30} />
+                </IconButton> :
+                <IconButton style={{ position: 'absolute', ...styles[props.position], top: '57%' }} onClick={() => { downloadImage(props.currentMessage) }} component="div"
+                  aria-label="attach" size="large">
+                  <CheckIcon color={'primary'} />
+                </IconButton>
+            }
+          </Grid>
+        </Grid>
 
-      }
-
-      <img className='msgImg' onClick={() => props.openImageOverlay(props.currentMessage)}
-        src={props.currentMessage.image} alt='Previewed'></img>
-    </Grid>)
+        <Grid item>
+          <img className='msgImg' onClick={() => props.openImageOverlay(props.currentMessage)} src={props.currentMessage.image} alt='Previewed'></img>
+        </Grid>
+      </Grid>
+    )
   }
   return null;
 }
