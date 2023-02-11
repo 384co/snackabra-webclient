@@ -24,7 +24,7 @@ import JoinDialog from "../components/Modals/JoinDialog";
 import NotificationContext from "../contexts/NotificationContext";
 import ImportDialog from "../components/Modals/ImportDialog";
 import DataOperationsDialog from "../components/Modals/DataOperationsDialog";
-import GeneralNotificationSettingsDialog from '../components/Modals/NotificationSettingsDialog';
+import { GeneralNotificationSettingsDialog } from '../components/Modals/NotificationSettingsDialog';
 import RoomMenu from "../components/Rooms/RoomMenu"
 import NavBarActionContext from "../contexts/NavBarActionContext";
 import { observer } from "mobx-react"

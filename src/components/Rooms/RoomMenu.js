@@ -14,12 +14,16 @@ import ConnectionStatus from "./ConnectionStatus"
 import { observer } from "mobx-react"
 import { SnackabraContext } from "mobx-snackabra-store";
 
+import SettingsIcon from '@mui/icons-material/Settings';
+import { RoomNotificationSettingsDialog } from "../Modals/NotificationSettingsDialog"
+
 const ITEM_HEIGHT = 48;
 
 const RoomMenu = observer((props) => {
   const sbContext = React.useContext(SnackabraContext);
   const notify = React.useContext(NotificationContext);
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [openRoomNotificationOptions, setOpenRoomNotificationOptions] = React.useState(false);
   const open = Boolean(anchorEl);
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -80,6 +84,13 @@ const RoomMenu = observer((props) => {
 
   return (
     <div>
+      <RoomNotificationSettingsDialog
+        roomId={props.roomId}
+        open={openRoomNotificationOptions}
+        onClose={() => {
+          setOpenRoomNotificationOptions(false)
+        }}
+      />
       <IconButton
         aria-label="more"
         id="long-button"
@@ -115,6 +126,7 @@ const RoomMenu = observer((props) => {
             </ListItemIcon>
             <ListItemText>Edit Name</ListItemText>
           </MenuItem>
+
           <MenuItem onClick={() => {
             handleClose()
             getRoomData(props.roomId)
@@ -124,6 +136,7 @@ const RoomMenu = observer((props) => {
             </ListItemIcon>
             <ListItemText>Get Channel</ListItemText>
           </MenuItem>
+
           <MenuItem onClick={() => {
             handleClose()
             getRoomStorage(props.roomId)
@@ -133,11 +146,22 @@ const RoomMenu = observer((props) => {
             </ListItemIcon>
             <ListItemText>Get Shards</ListItemText>
           </MenuItem>
+
           <MenuItem onClick={copy}>
             <ListItemIcon>
               <IosShareOutlinedIcon />
             </ListItemIcon>
             <ListItemText>Share</ListItemText>
+          </MenuItem>
+
+          <MenuItem onClick={() => {
+            handleClose()
+            setOpenRoomNotificationOptions(true)
+          }}>
+            <ListItemIcon>
+              <SettingsIcon />
+            </ListItemIcon>
+            <ListItemText>Room Settings</ListItemText>
           </MenuItem>
         </MenuList>
       </Menu>
