@@ -36,7 +36,6 @@ function storageAvailable(type) {
   }
 }
 
-
 function GeneralNotificationSettingsDialog(props) {
   const theme = useTheme()
   const sbContext = React.useContext(SnackabraContext)
@@ -217,11 +216,11 @@ function RoomNotificationSettingsDialog(props) {
     if (storageAvailable('localStorage')) {
       // For dev -- resets the object, if you change keys or whatever...
       //localStorage.removeItem('push-notif-settings-global')
-      loadSettingsFromLocalStorage(props)
+      loadSettingsFromLocalStorage()
     } else {
       console.log('Local storage not available. Unable to save settings.')
     }
-  }, [props])
+  }, [])
 
   const defaultRoomSettings = {
     disable: {isActive: false },
