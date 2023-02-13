@@ -9,10 +9,14 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import IosShareOutlinedIcon from '@mui/icons-material/IosShareOutlined';
+import CollectionsIcon from '@mui/icons-material/Collections';
 import NotificationContext from "../../contexts/NotificationContext";
 import ConnectionStatus from "./ConnectionStatus"
 import { observer } from "mobx-react"
 import { SnackabraContext } from "mobx-snackabra-store";
+
+import ImageGallery from '../Images/ImageGallery'
+import ResponsiveDialog from '../ResponsiveDialog'
 
 const ITEM_HEIGHT = 48;
 
@@ -20,6 +24,7 @@ const RoomMenu = observer((props) => {
   const sbContext = React.useContext(SnackabraContext);
   const notify = React.useContext(NotificationContext);
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [openGallery, setOpenGallery] = React.useState(false);
   const open = Boolean(anchorEl);
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -78,8 +83,14 @@ const RoomMenu = observer((props) => {
     }
   }
 
+
   return (
     <div>
+      <ImageGallery
+      props={props}
+      open={openGallery}
+      onClose={() => {setOpenGallery(false)}}
+      />
       <IconButton
         aria-label="more"
         id="long-button"
@@ -115,6 +126,7 @@ const RoomMenu = observer((props) => {
             </ListItemIcon>
             <ListItemText>Edit Name</ListItemText>
           </MenuItem>
+
           <MenuItem onClick={() => {
             handleClose()
             getRoomData(props.roomId)
@@ -124,6 +136,7 @@ const RoomMenu = observer((props) => {
             </ListItemIcon>
             <ListItemText>Get Channel</ListItemText>
           </MenuItem>
+
           <MenuItem onClick={() => {
             handleClose()
             getRoomStorage(props.roomId)
@@ -133,11 +146,22 @@ const RoomMenu = observer((props) => {
             </ListItemIcon>
             <ListItemText>Get Shards</ListItemText>
           </MenuItem>
+
           <MenuItem onClick={copy}>
             <ListItemIcon>
               <IosShareOutlinedIcon />
             </ListItemIcon>
             <ListItemText>Share</ListItemText>
+          </MenuItem>
+
+          <MenuItem onClick={() => {
+            handleClose()
+            setOpenGallery(true)
+          }}>
+            <ListItemIcon>
+              <CollectionsIcon />
+            </ListItemIcon>
+            <ListItemText>Image Gallery</ListItemText>
           </MenuItem>
         </MenuList>
       </Menu>
