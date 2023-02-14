@@ -3,70 +3,62 @@ import * as React from 'react'
 import ResponsiveDialog from "../ResponsiveDialog";
 import { useTheme } from '@mui/material/styles'
 
-import { isMobile } from 'react-device-detect'
 import ImageList from '@mui/material/ImageList'
 import ImageListItem from '@mui/material/ImageListItem'
 
 //import ImageViewer from './ImageViewer'
-import { observer } from "mobx-react"
-import { SnackabraContext } from 'mobx-snackabra-store'
 
 
-const ImageGallery = observer((props) => {
+const ImageGallery = (props) => {
   const theme = useTheme()
-  const sbContext = React.useContext(SnackabraContext)
+  const [images, setImages] = React.useState(null)
+  const { sbContext } = props
 
   const [open, setOpen] = React.useState(props.open)
   React.useEffect(() => {
     setOpen(props.open)
   }, [props.open])
 
-  //const { img, images, sbContext, controlMessages } = props
-  //const [imageList, setImageList] = React.useState(images)
 
   React.useEffect(() => {
-    console.log('ImageGallery useEffect')
-    console.dir(props)
-  }, [])
+    async function getRoomInfo() {
+      return await sbContext.getChannel(props.roomId)
+    }
 
+    getRoomInfo().then((room) => {
+      let imgs = []
+      let count = 0
+      room.messages.forEach(msg => {
+        let img =  {
+          key: count++,
+          image: msg.image,
+        }
+        imgs.push(img)
+      })
+
+      setImages(imgs)
+    })
+
+  }, [])
 
   return (
     <ResponsiveDialog title={'Image Gallery'}
     open={open}
-    onClose={props.onClose()}
+    onClose={props.onClose}
     showActions
     fullScreen
     >
-
-        <p> Cheerio </p>
+      <ImageList variant="masonry" cols={3} gap={8}>
+        {images.map((item) => (
+          <ImageListItem key={item.key}>
+          <img
+            src={item.image}
+          />
+          </ImageListItem>
+        ))}
+      </ImageList>
     </ResponsiveDialog>
   )
-})
+}
 
 export default ImageGallery
-
-//   <ImageViewer
-//   image={item.img}
-//   sbContext={sbContext}
-//   controlMessages={controlMessages}
-//   onOpen={() => {
-//     props.onOpen()
-//   }}
-//   onClose={() => {
-//     props.onClose()
-//   }}
-// />
-
-
-{/* <ImageList variant="masonry" cols={3} gap={8}>
-  {images.map((item) => (
-    <ImageListItem key={item.img}>
-      <img
-        srcSet={`${item.img}?w=164&h=164&fit=crop&auto=format 1x,
-        ${item.img}?w=164&h=164&fit=crop&auto=format&dpr=2 2x`}
-        alt={item.title}
-        loading="lazy"
-      />
-    </ImageListItem>
-  ))}
-</ImageList> */}

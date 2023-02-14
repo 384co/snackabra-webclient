@@ -16,7 +16,7 @@ import { observer } from "mobx-react"
 import { SnackabraContext } from "mobx-snackabra-store";
 
 import ImageGallery from '../Images/ImageGallery'
-import ResponsiveDialog from '../ResponsiveDialog'
+
 
 const ITEM_HEIGHT = 48;
 
@@ -47,9 +47,7 @@ const RoomMenu = observer((props) => {
   }
 
   const getRoomData = React.useCallback(async (roomId) => {
-    console.log(roomId)
     const room = await sbContext.getChannel(roomId)
-    console.log(room)
     sbContext.downloadRoomData(roomId, room.key).then((data) => {
       delete data.channel.SERVER_SECRET
       console.log(data.channel)
@@ -87,9 +85,10 @@ const RoomMenu = observer((props) => {
   return (
     <div>
       <ImageGallery
-      props={props}
-      open={openGallery}
-      onClose={() => {setOpenGallery(false)}}
+          sbContext={sbContext}
+          roomId={props.roomId}
+          open={openGallery}
+          onClose={() => {setOpenGallery(false)}}
       />
       <IconButton
         aria-label="more"

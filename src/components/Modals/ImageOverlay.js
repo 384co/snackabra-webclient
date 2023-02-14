@@ -7,7 +7,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import Slide from '@mui/material/Slide';
 import DialogContent from "@mui/material/DialogContent";
 import { isMobile } from 'react-device-detect';
-// import ImageCarousel from '../images/ImageCarousel';
+// import ImageCarousel from '../Images/ImageCarousel';
 import ImageCarousel from '../Images/ImageCarouselVirtualized';
 
 const Transition = React.forwardRef(function Transition(props, ref) {
