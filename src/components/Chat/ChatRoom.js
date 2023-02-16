@@ -6,6 +6,7 @@ import RenderBubble from "./RenderBubble";
 import RenderAvatar from "./RenderAvatar";
 import RenderAttachmentIcon from "./RenderAttachmentIcon";
 import ImageOverlay from "../Modals/ImageOverlay";
+import ImageGallery from "../Modals/ImageGallery";
 import RenderImage from "./RenderImage";
 import ChangeNameDialog from "../Modals/ChangeNameDialog";
 import RenderChatFooter from "./RenderChatFooter";
@@ -38,6 +39,7 @@ class ChatRoom extends React.PureComponent {
     openAdminDialog: false,
     openWhisper: false,
     openPreview: false,
+    openGallery: true,
     openChangeName: false,
     openFirstVisit: false,
     changeUserNameProps: {},
@@ -269,6 +271,22 @@ class ChatRoom extends React.PureComponent {
   imageOverlayClosed = () => {
     this.props.inhibitSwipe(0)
     this.setState({ openPreview: false, img: '', imgLoaded: false })
+  }
+
+  openImageGallery = () => {
+    this.props.inhibitSwipe(1)
+    let _images = [];
+    for (let x in this.state.messages) {
+      if (this.state.messages[x].image !== '') {
+        _images.push(this.state.messages[x])
+      }
+    }
+    this.setState({ openGallery: true, images: _images })
+  }
+
+  imageGalleryClosed = () => {
+    this.props.inhibitSwipe(0)
+    this.setState({ openGallery: false, img: '', imgLoaded: false })
   }
 
   promptUsername = (context) => {
@@ -522,6 +540,14 @@ class ChatRoom extends React.PureComponent {
             controlMessages={this.state.controlMessages}
             imgLoaded={this.state.imgLoaded}
             onClose={this.imageOverlayClosed} />
+          <ImageGallery
+            sbContext={this.sbContext}
+            images={this.state.images}
+            open={this.state.openGallery}
+            img={this.state.img}
+            controlMessages={this.state.controlMessages}
+            imgLoaded={this.state.imgLoaded}
+            onClose={this.imageGalleryClosed} />
           <ChangeNameDialog {...this.state.changeUserNameProps} open={this.state.openChangeName} onClose={(userName, _id) => {
             this.saveUsername(userName, _id)
             // this.setState({ openChangeName: false })
