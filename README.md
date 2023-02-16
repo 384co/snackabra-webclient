@@ -1,9 +1,13 @@
-.. image:: snackabra.svg
-   :height: 100px
-   :align: center
-   :alt: The 'michat' Pet Logo
 
-======================
+==========================================
+DO NOT USE dot MD FILE - transition to RST
+==========================================
+
+
+
+<img style="height: 100px" src="snackabra.svg">
+
+
  Snackabra Web Client
 ======================
 
@@ -19,91 +23,82 @@ snackabra@protonmail.com
 Introduction
 ============
 
-This react web client can connect to any Snackabra server -
+This react native web client can connect to any Snackabra server -
 public or private.
 
-To run your own servers please see https://snackabra.io for documentation
+To run your own private "room server", you can install:
+
+* https://github.com/snackabra/snackabra-roomserver
 
 
-Webclient Setup
-===============
+Setup
+=====
 
-First copy the template ''.env''' file to the root:
+You need to copy the template ".env" file to the root:
 
-::
-
-   cp example.env .env
-
-See below (Private Servers) for details.
-
-Currently you also need to clone ''mobx-snackabra-store'' into the
-top directory (this will become an npm package).
+``` bash
+cp env.example .env
+```
+See below (Private Servers) for details: this file points your
+webclient to your preferred ``snackabra`` servers (room and storage).
 
 Once done, you can simply:
 
-::
-
-   yarn install
-   yarn start
+``` bash
+yarn install
+yarn start
+```
 
 It should be accessible on ``localhost:3000``.
 
-To create an optimized production build:
 
-::
+``` bash
+yarn build
+```
 
-   yarn build
-
-In your project root a new folder ``build`` will contain your optimized production build.
-You can serve this build using the ``serve`` package from npmjs or whatever else you'd prefer.
 
 If you're changing messages in the UI, you will occasionally need:
 
-::
-
-   yarn extract
-   yarn compile
+``` bash
+yarn extract
+yarn compile
+```
 
 To maintain the internationalization setup (though currently we
 only support the ``en`` locale).
 
 For development, one suggestion is to install the React Native Chrome
-Extension [#f01]_ and then open developer tools. When running the
+Extension [^1] and then open developer tools. When running the
 extension against your local version (``yarn start``), you get the
 "developer" build, and against your server you'll get "production"
 build (which can also be tested locally).
 
 
+
 Private Servers
 ===============
 
-By default this build will point your web app to Snackabra test servers:
+By default this build will point your web app to the
+https://Privacy.App servers, you can change this in the env file:
 
-::
+Using the examples in ``example.env`` in the root of the project, update
+the enviornmental variables for your enviornment.
 
-   REACT_APP_CHANNEL_SERVER=https://channel.384co.workers.dev
-   REACT_APP_CHANNEL_SERVER_WS=wss://r.example.workers.dev
-   REACT_APP_SHARD_SERVER=https://storage.384co.workers.dev
+Included the appropriate protocol for the servers you are attempting to reach. 
 
+```
+```
 
-If you are running your own snackabra room server, you will need to
-change contents of ''.env'' file.
-
-For example if you are running local SDK servers, you'll need:
-
-::
-
-   REACT_APP_CHANNEL_SERVER=http://localhost:4000
-   REACT_APP_SHARD_SERVER=http://localhost:4000
-   REACT_APP_CHANNEL_SERVER_WS=ws://localhost:4000
+``REACT_APP_CHANNEL_SERVER`` is for api calls over the ``channel`` server
 
 
-You can run a personal room server and still use public storage
-servers, but you will only be able to read files, not upload. 
+``REACT_APP_SHARD_SERVER`` is for api calls over the ``shard`` server
 
-Remember to always run a full ''yarn build'' after any changes to
-the ''.env'' file. Of course you can also point it to any other
-public host as well. [#f02]_
+
+``REACT_APP_CHANNEL_SERVER_WS`` communicatin over the ``channel`` socket
+
+
+Of course you can also point it to any other public host as well. [^2]
 
 
 Hosting your Client
@@ -136,12 +131,11 @@ take less than 10-15 minutes.
 Reminder: if you are setting up your own domain ("acme.com"), then
 you should end up with something like this:
 
-::
-
+```
    acme.com    -> will server the static pages of this (web) client
    r.acme.com  -> this runs your snackabra-roomserver
    s.acme.com  -> this runs your snackabra-storageserver
-
+```
 
 Notes
 =====
@@ -153,17 +147,13 @@ on https://privacy.app or you can configure it to connect
 to any snackabra server, including personal server.
 
 The app is written in (mostly) React Native and based on the
-(excellent) Gifted Chat code. [#f03]_ For a few reasons, we are
-currently using a slightly modified fork. [#f04]_
-
-
-
+(exellent) Gifted Chat code. [^3]
 
 
 LICENSE
 =======
 
-Copyright (c) 2016-2023 Magnusson Institute, All Rights Reserved.
+Copyright (c) 2016-2021 Magnusson Institute, All Rights Reserved.
 
 "Snackabra" is a registered trademark
 
@@ -187,18 +177,12 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-|
-|
 
+Footnotes
 
-.. rubric:: Footnotes
+[^1]: [https://chrome.google.com/webstore/detail/react-developer-tools/fmkadmapgofadopljbjfkapdkoienihi?hl=en](https://chrome.google.com/webstore/detail/react-developer-tools/fmkadmapgofadopljbjfkapdkoienihi?hl=en)
 
-.. [#f01] https://chrome.google.com/webstore/detail/react-developer-tools/fmkadmapgofadopljbjfkapdkoienihi?hl=en
-
-.. [#f02] Future improvement will support having a list of snackabara servers that the client
+[^2]: Future improvement will support having a list of snackabara servers that the client
 	  can query for any room, "DNS-style".
 
-.. [#f03] https://github.com/FaridSafi/react-native-gifted-chat)
-
-.. [#f04] https://github.com/Magnusson-Institute/react-native-gifted-chat
-
+[^3]: [https://github.com/FaridSafi/react-native-gifted-chat](https://github.com/FaridSafi/react-native-gifted-chat)

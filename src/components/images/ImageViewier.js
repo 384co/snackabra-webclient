@@ -23,6 +23,7 @@ export default function ImageViewer(props) {
     }))
 
     React.useEffect(() => {
+        console.log(loadImage, image.image)
         setImage(image.image)
         if(image?.image){
             
@@ -146,7 +147,7 @@ export default function ImageViewer(props) {
                     api.start({ scale: 1, y: 0, x: 0, rubberband: false, immediate: true })
                 } else {
 
-                    api.start({ scale: s, x, y })
+                    api.start({ scale: s, x, y, rubberband: false, immediate: true })
 
                 }
                 return memo
@@ -155,7 +156,7 @@ export default function ImageViewer(props) {
         {
             target: myRef,
             drag: { from: () => [style.x.get(), style.y.get()], filterTaps: true, rubberband: true, immediate: true },
-            pinch: { scaleBounds: { min: 1, max: 20 }, pinchOnWheel: true, rubberband: true, immediate: true },
+            pinch: { scaleBounds: { min: 1, max: 20 }, pinchOnWheel: true, rubberband: false, immediate: true },
         }
     )
     return (
@@ -177,7 +178,6 @@ export default function ImageViewer(props) {
                 bgColor="inherit"
             />
             }
-
         </a.div>
     );
 }
