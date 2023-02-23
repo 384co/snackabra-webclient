@@ -59,6 +59,7 @@
     "snackabra": "https://github.com/384co/snackabra-jslib.git#development",
     "styled-components": "^5.3.5",
     "ts-node": "^10.9.1",
+    "vosk-browser": "^0.0.8",
     "workbox-core": "^6.5.3",
     "workbox-expiration": "^6.5.3",
     "workbox-precaching": "^6.5.3",
