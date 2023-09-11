@@ -41,6 +41,7 @@ export default () => {  // eslint-disable-line
     if (rcount++ < 30) { // dump the first 30 packets
       dump(encodedFrame, 'recv');
     }
+
     const blob = new Blob([encodedFrame.data]);
     const iv = await blob.slice(0, 12).arrayBuffer();
     const data = await blob.slice(12, blob.size).arrayBuffer();
@@ -80,7 +81,6 @@ export default () => {  // eslint-disable-line
   //   }
   // };
   onmessage = async (event) => {
-    postMessage('asdasdasdasdasd')
     if (event) {
       if (event.data.operation === 'encode' || event.data.operation === 'decode') {
         return await handleTransform(event.data.operation, event.data.readable, event.data.writable);
