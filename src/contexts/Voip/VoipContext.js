@@ -13,6 +13,13 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import ListItemText from '@mui/material/ListItemText';
+import { isMobile } from "react-device-detect";
+import AppBar from '@mui/material/AppBar';
+import Toolbar from '@mui/material/Toolbar';
+import Typography from '@mui/material/Typography';
+import CloseIcon from '@mui/icons-material/Close';
+import Button from '@mui/material/Button';
+
 import SnackabraContext from "../../contexts/SnackabraContext";
 
 const VoipContext = React.createContext(undefined);
@@ -63,6 +70,9 @@ export class VoipProvider extends React.Component {
         console.log(e)
       }
     }
+    this.worker.onerror = (e) => {
+      console.error(e)
+    }
   }
 
   openCallWindow = (key, channelId) => {
@@ -89,7 +99,6 @@ export class VoipProvider extends React.Component {
   }
 
   initVideoCallClick = async (key, channel) => {
-    this.setState({ connected: true })
     this.connect(key, channel)
     await this.joinPeers()
     this.createPeerConnection()
@@ -160,7 +169,6 @@ export class VoipProvider extends React.Component {
       operation: 'setCryptoKey',
       currentCryptoKey: this.channel.socket.keys,
     });
-    this.setState({ connected: true })
   }
 
   emit = (message) => {
@@ -374,16 +382,16 @@ export class VoipProvider extends React.Component {
     this.pc.getSenders().forEach(this.setupSenderTransform);
     // console.trace('lskdafsdkfhalskdjbfaslkjf',_id)
     this.pc.ontrack = e => {
-      console.log('ontrack', e)
+      this.setState({ connected: true })
+
       this.setupReceiverTransform(e.receiver);
-      // const updatedEvent = new CustomEvent('remoteJoin', {
-      //   detail: {
-      //     type: 'remoteJoin',
-      //     _id: _id,
-      //     stream: e.streams[0]
-      //   },
-      // });
-      // document.dispatchEvent(updatedEvent);
+      const updatedEvent = new CustomEvent('remoteJoin', {
+        detail: {
+          type: 'remoteJoin',
+          _id: _id,
+        },
+      });
+      document.dispatchEvent(updatedEvent);
       this.remoteVideo.srcObject = e.streams[0]
     }
   }
@@ -451,11 +459,11 @@ export class VoipProvider extends React.Component {
 
   setupSenderTransform = (sender) => {
     try {
-      if (window.RTCRtpScriptTransform) {
-        // eslint-disable-next-line no-param-reassign
-        sender.transform = new window.RTCRtpScriptTransform(this.worker, { operation: 'encode' });
-        return;
-      }
+      // if (window.RTCRtpScriptTransform) {
+      //   // eslint-disable-next-line no-param-reassign
+      //   sender.transform = new window.RTCRtpScriptTransform(this.worker, { operation: 'encode' });
+      //   return;
+      // }
 
       const senderStreams = sender.createEncodedStreams();
 
@@ -473,10 +481,10 @@ export class VoipProvider extends React.Component {
 
   setupReceiverTransform = (receiver) => {
     try {
-      if (window.RTCRtpScriptTransform) {
-        receiver.transform = new window.RTCRtpScriptTransform(this.worker, { operation: 'decode' });
-        return;
-      }
+      // if (window.RTCRtpScriptTransform) {
+      //   receiver.transform = new window.RTCRtpScriptTransform(this.worker, { operation: 'decode' });
+      //   return;
+      // }
 
       const receiverStreams = receiver.createEncodedStreams();
       const { readable, writable } = receiverStreams;
@@ -522,7 +530,7 @@ export class VoipProvider extends React.Component {
 export default VoipContext;
 
 
-export const VoipComponent = () => {
+export const VoipComponent = (props) => {
   const voipContext = React.useContext(VoipContext);
   const [audioDevices, setAudioDevices] = React.useState([])
   const [audioDevice, setAudioDevice] = React.useState('')
@@ -534,6 +542,7 @@ export const VoipComponent = () => {
   const [connected, setConnected] = React.useState(false)
   const [remoteVideoIds, setRemoteVideoIds] = React.useState([])
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [myVideoClassState, setMyVideoClassState] = React.useState('local-video');
   const sbContext = React.useContext(SnackabraContext);
   const open = Boolean(anchorEl);
   const handleClick = (event) => {
@@ -542,6 +551,12 @@ export const VoipComponent = () => {
   const handleClose = () => {
     setAnchorEl(null);
   };
+
+  React.useEffect(() => {
+    document.addEventListener('remoteJoin', (e) => {
+      setMyVideoClassState('local-video minimized')
+    })
+  }, [])
 
   React.useEffect(() => {
     navigator.mediaDevices.enumerateDevices().then(function (devices) {
@@ -597,8 +612,13 @@ export const VoipComponent = () => {
 
     if (!voipContext.state.connected && connected) {
       setConnected(false)
-      voipContext.hangupClick()
+      endCall()
 
+    }
+
+    if (voipContext.state.connected && !connected) {
+      setMyVideoClassState('local-video minimized')
+      setConnected(true)
     }
 
   }, [connected, voipContext, voipContext.state.connected])
@@ -629,7 +649,13 @@ export const VoipComponent = () => {
   }
 
   const endCall = () => {
+    if (!videoMuted) toggleMuteVideo()
+
+    if (!audioMuted) toggleMuteAudio()
+
     voipContext.hangupClick()
+    setMyVideoClassState('local-video')
+    props.closeCallWindow()
   }
 
   const toggleMuteAudio = () => {
@@ -655,11 +681,35 @@ export const VoipComponent = () => {
       console.log('no video')
     }
   }
+  /*
+  background-color: blue;
+    position: absolute;
+    width: 240px;
+    right: 0px;
+    bottom: 47px;
+    border: 1px solid;
+    */
 
   return (
     <Grid container>
+      <IconButton
+        edge="start"
+        color="inherit"
+        onClick={endCall}
+        aria-label="close"
+        sx={
+          {
+            top: '8px',
+            right: '24px',
+            position: 'absolute',
+          }
+        }
+      >
+        <CloseIcon />
+      </IconButton>
 
-      {remoteVideoIds.map((video, index) => {
+
+      {/* {remoteVideoIds.map((video, index) => {
         setTimeout(() => {
           setVideoSrcObject(video._id, video.stream)
         }, 250)
@@ -667,95 +717,95 @@ export const VoipComponent = () => {
           <video style={{ width: "100%", backgroundColor: 'black' }} id={video._id} playsInline autoPlay></video>
         </Grid>
       })
-      }
-      <video id="remoteVideo" style={{ width: "100%", backgroundColor: 'black' }} playsInline autoPlay></video>
-      {/* <video id="localVideo" playsInline autoPlay></video> */}
+      } */}
+      <Grid style={{ width: '100%', position: 'relative' }} item>
+        <video id="remoteVideo" style={{ maxHeight: 'calc(100vh - 132px)', width: "100%", backgroundColor: 'black', position: 'relative', height: isMobile ? 'calc(100vh - 172px)' : 'calc(100% - 47px)' }} playsInline autoPlay></video>
+        <video className={myVideoClassState} style={{ zIndex: 999999 }} id="localVideo" playsInline autoPlay muted></video>
+        <Grid id="video-control-container" style={{ width: '100%' }} container justifyContent={'center'}>
+          <IconButton id="call-end" onClick={endCall}>
+            <CallEndIcon />
+          </IconButton>
+          <IconButton id="mic-mute" onClick={toggleMuteAudio}>
+            {audioMuted ? <MicIcon /> : <MicOffIcon />}
+          </IconButton>
+          <IconButton id="camera-mute" onClick={toggleMuteVideo}>
+            {videoMuted ? <VideocamIcon /> : <VideocamOffIcon />}
+          </IconButton>
+          <IconButton id="share-screen">
+            {screenShared ? <StopScreenShareIcon /> : <ScreenShareIcon />}
+          </IconButton>
+          <IconButton
+            aria-label="more"
+            id="long-button"
+            aria-controls={open ? 'long-menu' : undefined}
+            aria-expanded={open ? 'true' : undefined}
+            aria-haspopup="true"
+            onClick={handleClick}
+          >
+            <MoreVertIcon />
+          </IconButton>
+          <Menu
+            id="long-menu"
+            MenuListProps={{
+              'aria-labelledby': 'long-button',
+            }}
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleClose}
+          >
+            <MenuList>
+              <MenuItem >
+                <ListItemText>Select Microphone</ListItemText>
+                <ListItemText>
+                  <FormControl fullWidth>
+                    <InputLabel id="mic-select-label">Input</InputLabel>
+                    <Select
+                      labelId="mic-select-label"
+                      id="mic-select"
+                      value={audioDevice}
+                      label="Input"
+                      onChange={handleAudioDeviceChange}
+                    >
+                      {
+                        audioDevices.map((device, index) => {
+                          return <MenuItem key={index} value={device.deviceId}>{device.label}</MenuItem>
+                        })
+                      }
+                    </Select>
 
-      <Grid item xs={12}>
-        {/* <video id="remoteVideo" playsInline autoPlay></video> */}
-        <video style={{ width: "100%", backgroundColor: 'blue' }} id="localVideo" playsInline autoPlay muted></video>
-      </Grid>
-      <Grid id="video-control-container" container>
-        <IconButton id="call-end" onClick={endCall}>
-          <CallEndIcon />
-        </IconButton>
-        <IconButton id="mic-mute" onClick={toggleMuteAudio}>
-          {audioMuted ? <MicIcon /> : <MicOffIcon />}
-        </IconButton>
-        <IconButton id="camera-mute" onClick={toggleMuteVideo}>
-          {videoMuted ? <VideocamIcon /> : <VideocamOffIcon />}
-        </IconButton>
-        <IconButton id="share-screen">
-          {screenShared ? <StopScreenShareIcon /> : <ScreenShareIcon />}
-        </IconButton>
-        <IconButton
-          aria-label="more"
-          id="long-button"
-          aria-controls={open ? 'long-menu' : undefined}
-          aria-expanded={open ? 'true' : undefined}
-          aria-haspopup="true"
-          onClick={handleClick}
-        >
-          <MoreVertIcon />
-        </IconButton>
-        <Menu
-          id="long-menu"
-          MenuListProps={{
-            'aria-labelledby': 'long-button',
-          }}
-          anchorEl={anchorEl}
-          open={open}
-          onClose={handleClose}
-        >
-          <MenuList>
-            <MenuItem >
-              <ListItemText>Select Microphone</ListItemText>
-              <ListItemText>
+                  </FormControl>
+                </ListItemText>
+              </MenuItem>
+              <Divider />
+              <MenuItem>
+                <ListItemText>Select Camera</ListItemText>
                 <FormControl fullWidth>
-                  <InputLabel id="mic-select-label">Input</InputLabel>
+                  <InputLabel id="camera-select-label">Input</InputLabel>
                   <Select
-                    labelId="mic-select-label"
-                    id="mic-select"
-                    value={audioDevice}
+                    labelId="camera-select-label"
+                    id="camera-select"
+                    value={videoDevice}
                     label="Input"
-                    onChange={handleAudioDeviceChange}
+                    onChange={handleVideoDeviceChange}
                   >
                     {
-                      audioDevices.map((device, index) => {
+                      videoDevices.map((device, index) => {
                         return <MenuItem key={index} value={device.deviceId}>{device.label}</MenuItem>
                       })
                     }
                   </Select>
-
                 </FormControl>
-              </ListItemText>
-            </MenuItem>
-            <Divider />
-            <MenuItem>
-              <ListItemText>Select Camera</ListItemText>
-              <FormControl fullWidth>
-                <InputLabel id="camera-select-label">Input</InputLabel>
-                <Select
-                  labelId="camera-select-label"
-                  id="camera-select"
-                  value={videoDevice}
-                  label="Input"
-                  onChange={handleVideoDeviceChange}
-                >
-                  {
-                    videoDevices.map((device, index) => {
-                      return <MenuItem key={index} value={device.deviceId}>{device.label}</MenuItem>
-                    })
-                  }
-                </Select>
-              </FormControl>
-            </MenuItem>
-          </MenuList>
-        </Menu>
-        {/* <!-- <button id="call-settings" class="btn btn-warning btn-circle btn-lg">
+              </MenuItem>
+            </MenuList>
+          </Menu>
+          {/* <!-- <button id="call-settings" class="btn btn-warning btn-circle btn-lg">
           <i class="fa-solid fa-gear"></i>
         </button> --> */}
+        </Grid>
       </Grid>
+      {/* <video id="localVideo" playsInline autoPlay></video> */}
+
+
     </Grid>
   )
 }
