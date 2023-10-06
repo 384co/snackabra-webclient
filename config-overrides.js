@@ -4,6 +4,10 @@ const path = require("path");
 module.exports = {
   webpack: function (config, env) {
     if (env !== 'development') {
+      config.optimization = {
+        ...config.optimization,
+        minimize: false,
+      }
       config.module.rules.push({
         test: /\.js$/,
         exclude: /node_modules[/\\](?!react-native-gifted-chat|react-native-lightbox|react-native-parsed-text|expo-av|react-native-typing-animation)/,

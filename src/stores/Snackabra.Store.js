@@ -425,28 +425,24 @@ class ChannelStore {
       this[getChannel](this.id);
     }
 
-    let updateMessagesTimeout;
     worker.onmessage = (e) => {
       let data;
       if (!e.error) {
 
         switch (e.data.method) {
           case 'addMessage':
-            let message = JSON.parse(e.data.data)
-            // if (typeof this._messageCallback === 'function') {
-            //   this._messageCallback(message);
-            // }
+            console.log('adding message', e)
+            if (e.data.args.updateState) {
+              this.messages = [...this._messages, e.data.data]
+            }
+            // this.messages = [...this._messages, e.data.data]
             break;
           case 'getMessages':
-            let _messages = JSON.parse(e.data.data)
-            this.messages = _messages
-            // if (typeof this._messageCallback === 'function') {
-            //   this._messageCallback(message);
-            // }
+            console.log(e)
+            this.messages = e.data.data
             break
           default:
             console.warn('unknown worker message', data)
-
         }
       }
 
@@ -568,7 +564,7 @@ class ChannelStore {
     this._owner = owner
   }
 
-  getOldMessages = (length, messageCallback) => {
+  getOldMessages = (length) => {
     return new Promise((resolve, reject) => {
       try {
         this._socket.api.getOldMessages(length).then((r_messages) => {
@@ -576,9 +572,10 @@ class ChannelStore {
           // this.messages = r_messages
           for (let x in r_messages) {
             let m = r_messages[x]
-            this.receiveMessage(m, messageCallback)
+            this.receiveMessage(m)
           }
           this[save]();
+          this.getChannelMessages()
           resolve(r_messages);
         });
       } catch (e) {
@@ -663,7 +660,7 @@ class ChannelStore {
       console.log("==== connecting to channel:" + this.id)
       console.log("==== with key:" + this.key)
       const c = await this.SB.connect(
-        m => { this.receiveMessage(m); },
+        m => { this.receiveMessage(m, true); },
         this.key,
         this.id
       );
@@ -682,6 +679,7 @@ class ChannelStore {
         }
 
         this.motd = c.motd;
+        this.getOldMessages();
         this.readyResolver();
         await this[save]();
         return this
@@ -694,8 +692,12 @@ class ChannelStore {
 
   };
 
-  receiveMessage = (m) => {
-    worker.postMessage({ method: 'addMessage', message: m })
+  receiveMessage = (m, updateState = false) => {
+    console.log("==== received this message:", m)
+    if(updateState) {
+      this.messages = [...this._messages, m]
+    }
+    worker.postMessage({ method: 'addMessage', message: m, args: { updateState: updateState } })
   };
 
 }

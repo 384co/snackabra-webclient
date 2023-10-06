@@ -55,11 +55,9 @@ const ChatRoom = observer((props) => {
   }
   const sbContext = props.sbContext
   const channel = sbContext.channels[props.roomId];
-  const sending = {}
   let toUpload = []
   let uploaded = []
 
-  // const [messages, setMessages] = React.useState(new Map());
   const [giftedMessages, setGiftedMessages] = React.useState([]);
   const [user, setUser] = React.useState({});
   const [height, setHeight] = React.useState(0);
@@ -86,12 +84,14 @@ const ChatRoom = observer((props) => {
   }, [props])
 
   const receiveMessages = React.useCallback((messages) => {
-
+    console.log('______________________', messages)
     for (let _m in messages) {
       const m = messages[_m]
+      console.warn("Received message: ", m)
+      if(!m) return;
       try {
 
-        console.warn("Received message: ", JSON.parse(JSON.stringify(m)))
+
         const userId = `${m?.sender_pubKey?.x} ${m?.sender_pubKey?.y}`;
         m.user._id = userId;
         console.log(JSON.stringify(sbContext.getContact(userId)))
@@ -310,32 +310,13 @@ const ChatRoom = observer((props) => {
     }, 25)
   }
 
-  /**
- * Queue helps ensure each message gets a unique ID for Images
- * when sending multiple images gifted chat sees that as a single message
- * we need to add on to the message id to render the chat container properly
- */
-  // const processSQueue = () => {
-  //   setInterval(() => {
-  //     while (!_r.isEmpty && !_r.isMaxed) {
-  //       _r.processing++
-  //       const msg = _r.dequeue()
-  //       msg._id = msg._id + Date.now()
-  //       sending[msg._id] = msg._id
-  //       // setMessages(_messages => new Map(_messages).set(msg._id, msg))
-  //       _r.processing--
-  //     }
-  //   }, 25)
-  // }
-
   const connect = async (username) => {
     try {
-      // await channel.connect()
+      channel.connect()
       if (username) sbContext.createContact(username, channel.key)
       setUser(sbContext.getContact(channel.key))
 
       console.log('a channel', channel)
-      // setMessages(channel.messages)
 
       if (channel.motd !== '') {
         sendSystemInfo('MOTD: ' + channel.motd)

@@ -32,77 +32,80 @@ export default () => {
     });
 
     function openCursor(regex, callback) {
-        return new Promise(async (resolve, reject) => {
-            await IndexedKVReadyFlag
-            if (db) {
-                const transaction = db.transaction([options.table], "readonly");
-                const objectStore = transaction.objectStore(options.table);
-                const request = objectStore.openCursor(null, 'next');
-                let returnArray = [];
-                request.onsuccess = function () {
-                    const cursor = request.result;
-                    if (cursor) {
-                        if (String(cursor.key).match(regex)) {
-                            returnArray.push({ value: cursor.value.value, key: cursor.value.key });
+        return new Promise((resolve, reject) => {
+
+            IndexedKVReadyFlag.then(() => {
+                if (db) {
+                    const transaction = db.transaction([options.table], "readonly");
+                    const objectStore = transaction.objectStore(options.table);
+                    const request = objectStore.openCursor(null, 'next');
+                    let returnArray = [];
+                    request.onsuccess = function () {
+                        const cursor = request.result;
+                        if (cursor) {
+                            if (String(cursor.key).match(regex)) {
+                                returnArray.push({ value: cursor.value.value, key: cursor.value.key });
+                            }
+                            cursor.continue();
                         }
-                        cursor.continue();
-                    }
-                    else {
-                        if (callback) {
-                            callback(returnArray);
+                        else {
+                            if (callback) {
+                                callback(returnArray);
+                            }
+                            resolve(returnArray);
                         }
-                        resolve(returnArray);
-                    }
-                };
-            }
-            else {
-                reject('DB is not defined');
-            }
+                    };
+                }
+                else {
+                    reject('DB is not defined');
+                }
+            })
         });
     }
 
     function add(key, value) {
-        return new Promise(async (resolve, reject) => {
-            await IndexedKVReadyFlag
-            if (db) {
-                const transaction = db.transaction([options.table], "readwrite")
-                const objectStore = transaction.objectStore(options.table);
-                const request = objectStore.get(key);
-                request.onerror = event => {
-                    reject(event);
-                };
-                request.onsuccess = () => {
-                    const data = request.result;
-                    if (data?.value) {
-                        //Data exists we update the value
-                        data.value = value;
-                        try {
-                            const requestUpdate = objectStore.put(data);
-                            requestUpdate.onerror = event => {
+        return new Promise((resolve, reject) => {
+            IndexedKVReadyFlag.then(() => {
+                if (db) {
+                    const transaction = db.transaction([options.table], "readwrite")
+                    const objectStore = transaction.objectStore(options.table);
+                    const request = objectStore.get(key);
+                    request.onerror = event => {
+                        reject(event);
+                    };
+                    request.onsuccess = () => {
+                        const data = request.result;
+                        if (data?.value) {
+                            //Data exists we update the value
+                            data.value = value;
+                            try {
+                                const requestUpdate = objectStore.put(data);
+                                requestUpdate.onerror = event => {
+                                    reject(event);
+                                };
+                                requestUpdate.onsuccess = (event) => {
+                                    resolve(requestUpdate.result);
+                                };
+                            } catch (e) {
+                                console.error(e);
+                            }
+                        }
+                        else {
+                            const requestAdd = objectStore.add({ key: key, value: value });
+                            requestAdd.onsuccess = () => {
+                                resolve(requestAdd.result);
+                            };
+                            requestAdd.onerror = event => {
+                                console.error(event);
                                 reject(event);
                             };
-                            requestUpdate.onsuccess = (event) => {
-                                resolve(requestUpdate.result);
-                            };
-                        } catch (e) {
-                            console.error(e);
                         }
-                    }
-                    else {
-                        const requestAdd = objectStore.add({ key: key, value: value });
-                        requestAdd.onsuccess = () => {
-                            resolve(requestAdd.result);
-                        };
-                        requestAdd.onerror = event => {
-                            console.error(event);
-                            reject(event);
-                        };
-                    }
-                };
-            }
-            else {
-                reject(new Error('db is not defined'));
-            }
+                    };
+                }
+                else {
+                    reject(new Error('db is not defined'));
+                }
+            });
         });
     }
 
@@ -191,7 +194,7 @@ export default () => {
         try {
             let _messageValues = [];
             openCursor(new RegExp(`^${channel_id}`)).then((messages) => {
-                for(let i = 0; i < messages.length; i++){
+                for (let i = 0; i < messages.length; i++) {
                     _messageValues.push(messages[i].value);
                 }
                 postMessage({ error: false, status: 'ok', data: mergeMessages([], _messageValues), method: 'getMessages' });
@@ -201,11 +204,11 @@ export default () => {
         }
     }
 
-    const addMessage = (message) => {
+    const addMessage = (message, args) => {
         try {
             message.createdAt = getDateTimeFromTimestampPrefix(message.timestampPrefix);
             add(message._id, message)
-            postMessage({ error: false, status: 'ok', data: message, method: 'addMessage' });
+            postMessage({ error: false, status: 'ok', data: message, method: 'addMessage', args: args });
         } catch (e) {
             throw new Error(`Message Worker: Error(addMessage() ): ${e.message}`)
         }
@@ -213,18 +216,14 @@ export default () => {
 
 
     self.onmessage = (msg) => {
-        // console.log('Message Worker: Message received: ', msg);
-
         const digest = msg.data
         switch (digest.method) {
-            case 'reconcile':
-                break;
             case 'getMessages':
                 console.log('getMessages', digest.channel_id)
                 getMessages(digest.channel_id);
                 break;
             case 'addMessage':
-                addMessage(digest.message);
+                addMessage(digest.message, digest.args);
                 break;
             default:
                 throw new Error(`No such message worker method (${digest.method})`);
