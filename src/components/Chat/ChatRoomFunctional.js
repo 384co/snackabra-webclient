@@ -18,6 +18,7 @@ import WhisperUserDialog from "../Modals/WhisperUserDialog";
 import RenderComposer from "./RenderComposer";
 import DropZone from "../DropZone";
 import Queue from "../../utils/Queue";
+import { toJS } from "mobx";
 import { observer } from "mobx-react"
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isMobile } from 'react-device-detect';
@@ -80,10 +81,73 @@ const ChatRoom = observer((props) => {
   const [inputErrored, setInputErrored] = React.useState(false);
   const [typing, setTyping] = React.useState(false);
   const [controlMessages, setControlMessages] = React.useState({});
-
   React.useEffect(() => {
     props.messageContainerRef(giftedRef)
   }, [props])
+
+  const receiveMessages = React.useCallback((messages) => {
+
+    for (let _m in messages) {
+      const m = messages[_m]
+      try {
+
+        console.warn("Received message: ", JSON.parse(JSON.stringify(m)))
+        const userId = `${m?.sender_pubKey?.x} ${m?.sender_pubKey?.y}`;
+        m.user._id = userId;
+        console.log(JSON.stringify(sbContext.getContact(userId)))
+        m.user.name = sbContext.getContact(userId).name === 'Unamed' && m.sender_username ? m.sender_username : sbContext.getContact(userId).name;
+        m.sender_username = m.sender_username ? m.sender_username : m.user.name;
+
+        switch (m.messageType) {
+          case messageTypes.SIMPLE_CHAT_MESSAGE:
+            console.log('SIMPLE_CHAT_MESSAGE')
+            handleSimpleChatMessage(m);
+            break;
+          case messageTypes.FILE_SHARD_METADATA:
+            console.log('FILE_SHARD_METADATA')
+            const obj = JSON.parse(m.contents)
+            setControlMessages(_controlMessages => {
+              _controlMessages[obj.hash] = obj.handle
+              return _controlMessages
+            })
+            // Tracks progress
+            if (toUpload.length > 0) {
+              if (toUpload.includes(obj.hash)) {
+                uploaded.push(obj.hash)
+                // setProgressBarWidth(Math.ceil(uploaded.length / toUpload.length * 100));
+              }
+
+            }
+            if (uploaded.length === toUpload.length) {
+              setUploading(false)
+              toUpload = []
+              uploaded = []
+            }
+            console.log('FILE_SHARD_METADATA', obj.hash, obj.handle)
+            FileHelper.knownShards.set(obj.hash, obj.handle)
+            break;
+          case messageTypes.IMAGE_MESSAGE:
+            console.log('IMAGE_MESSAGE', m)
+            for (let x in m.fileMetadata) {
+              fileMetadata.set(x, m.fileMetadata)
+            }
+            handleSimpleChatMessage(m);
+            break;
+          case messageTypes.VOIP_SIGNAL:
+            console.log('VOIP_SIGNAL', m)
+            break;
+          default:
+            console.warn("Unknown message type received: ", m);
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    }
+  }, [])
+
+  React.useEffect(() => {
+    receiveMessages(toJS(channel.messages))
+  }, [channel.messages, receiveMessages])
 
 
   const addMessage = React.useCallback((message, _previousMessages = null) => {
@@ -188,31 +252,30 @@ const ChatRoom = observer((props) => {
   }
 
   const subscribeToNotifications = () => {
-    setTimeout(async () => {
 
-      try {
+    try {
 
 
-        if (!window.sw_registration || !('pushManager' in window.sw_registration)) {
-          console.log('pushManager not found in registration object...')
-          return;
-        }
+      if (!window.sw_registration || !('pushManager' in window.sw_registration)) {
+        console.log('pushManager not found in registration object...')
+        return;
+      }
 
-        if(await window.sw_registration.pushManager.getSubscription().then((subscription) => {
-          if (subscription) {
-            console.log('Already subscribed to push notifications', subscription)
-            return true
-          }
-          return false
-        })) return;
+      // if(await window.sw_registration.pushManager.getSubscription().then((subscription) => {
+      //   if (subscription) {
+      //     console.log('Already subscribed to push notifications', subscription)
+      //     return true
+      //   }
+      //   return false
+      // })) return;
 
-        console.dir(window.sw_registration)
+      console.dir(window.sw_registration)
 
-        console.log('Registering push')
-        const subscription = await window.sw_registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: SB.base64ToArrayBuffer(process.env.REACT_APP_PUBLIC_VAPID_KEY),
-        })
+      console.log('Registering push')
+      window.sw_registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: SB.base64ToArrayBuffer(process.env.REACT_APP_PUBLIC_VAPID_KEY),
+      }).then((subscription) => {
 
         fetch(process.env.REACT_APP_NOTIFICATION_SERVER + '/subscription', {
           method: 'POST',
@@ -224,10 +287,10 @@ const ChatRoom = observer((props) => {
             'Content-Type': 'application/json',
           },
         })
-      } catch (e) {
-        console.error(e)
-      }
-    }, 1000)
+      })
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   /**
@@ -267,78 +330,20 @@ const ChatRoom = observer((props) => {
 
   const connect = async (username) => {
     try {
-      await channel.connect(receiveMessages)
+      // await channel.connect()
       if (username) sbContext.createContact(username, channel.key)
       setUser(sbContext.getContact(channel.key))
 
       console.log('a channel', channel)
       // setMessages(channel.messages)
-      channel.getOldMessages(0).then(() => {
-        if (channel.motd !== '') {
-          sendSystemInfo('MOTD: ' + channel.motd)
-        }
-      })
+
+      if (channel.motd !== '') {
+        sendSystemInfo('MOTD: ' + channel.motd)
+      }
+
 
     } catch (e) {
       notify('Error connecting to channel', 'error')
-      console.error(e)
-    }
-  }
-
-  const receiveMessages = (m) => {
-    try {
-
-      console.warn("Received message: ", JSON.parse(JSON.stringify(m)))
-      const userId = `${m?.sender_pubKey?.x} ${m?.sender_pubKey?.y}`;
-      m.user._id = userId;
-      console.log(JSON.stringify(sbContext.getContact(userId)))
-      m.user.name = sbContext.getContact(userId).name === 'Unamed' && m.sender_username ? m.sender_username : sbContext.getContact(userId).name;
-      m.sender_username = m.sender_username ? m.sender_username : m.user.name;
-
-      switch (m.messageType) {
-        case messageTypes.SIMPLE_CHAT_MESSAGE:
-          console.log('SIMPLE_CHAT_MESSAGE')
-          handleSimpleChatMessage(m);
-          break;
-        case messageTypes.FILE_SHARD_METADATA:
-          console.log('FILE_SHARD_METADATA')
-          const obj = JSON.parse(m.contents)
-          setControlMessages(_controlMessages => {
-            _controlMessages[obj.hash] = obj.handle
-            return _controlMessages
-          })
-          // Tracks progress
-          if (toUpload.length > 0) {
-            if (toUpload.includes(obj.hash)) {
-              uploaded.push(obj.hash)
-              // setProgressBarWidth(Math.ceil(uploaded.length / toUpload.length * 100));
-            }
-
-          }
-          if (uploaded.length === toUpload.length) {
-            setUploading(false)
-            toUpload = []
-            uploaded = []
-          }
-          console.log('FILE_SHARD_METADATA', obj.hash, obj.handle)
-          FileHelper.knownShards.set(obj.hash, obj.handle)
-          break;
-        case messageTypes.IMAGE_MESSAGE:
-          console.log('IMAGE_MESSAGE', m)
-          for (let x in m.fileMetadata) {
-            fileMetadata.set(x, m.fileMetadata)
-          }
-          handleSimpleChatMessage(m);
-          break;
-        case messageTypes.VOIP_SIGNAL:
-          console.log('VOIP_SIGNAL', m)
-          break;
-        default:
-          console.warn("Unknown message type received: ", m);
-          console.warn("Attempting to process as a legacy chat message... this will be deprecated soon.");
-          receiveMessagesLegacy(m);
-      }
-    } catch (e) {
       console.error(e)
     }
   }
@@ -354,37 +359,6 @@ const ChatRoom = observer((props) => {
       }
     })
 
-  }
-
-  // For backaward compatibility with older versions of the chat app
-  const receiveMessagesLegacy = (msg) => {
-    if (msg) {
-      console.log("==== here is the message: (ChatRoom.js)")
-      if (!msg.control) {
-        [...channel.messages.entries()].reduce((acc, curr) => {
-          const msg_id = curr._id.toString()
-          if (!msg_id.match(/^sending/)) {
-            acc.push(curr);
-            // setMessages(_messages => new Map(_messages).set(msg_id, curr))
-          } else {
-            delete sending[curr._id]
-          }
-          return acc;
-        }, []);
-        const userId = `${msg.user._id.x} ${msg.user._id.y}`;
-        msg.user._id = userId;
-        msg.user.name = sbContext.getContact(msg.user._id) !== undefined ? sbContext.contacts[userId] : msg.user.name;
-        msg.sender_username = msg.user.name;
-        // setMessages(_messages => new Map(_messages).set(msg._id, msg))
-      } else {
-        setControlMessages(_controlMessages => {
-          _controlMessages[msg.hash] = msg.handle
-          return _controlMessages
-        })
-      }
-    } else {
-      console.warn("receiveMessages() called with empty message")
-    }
   }
 
   const notify = (message, severity) => {
@@ -672,15 +646,32 @@ const ChatRoom = observer((props) => {
           user={user}
           inverted={true}
           alwaysShowSend={true}
+
+
+
+          scrollToBottom={true}
+          showUserAvatar={true}
+          onPressAvatar={promptUsername}
+          onLongPressAvatar={(context) => {
+            return handleReply(context)
+          }}
+          onLongPress={() => false}
+          keyboardShouldPersistTaps='always'
+
+          parsePatterns={() => [
+            { type: 'phone', style: {}, onPress: undefined }
+          ]}
+
+
           renderMessage={RenderMessage}
           renderActions={(props) => {
             return <RenderAttachmentIcon
               {...props}
+              connected={channel.status === 'OPEN'}
               roomId={roomId}
               dzRef={dzRef}
               showLoading={loading} />
           }}
-
           renderAvatar={RenderAvatar}
           renderMessageImage={(props) => {
             return <RenderImage
@@ -693,12 +684,7 @@ const ChatRoom = observer((props) => {
               sbContext={sbContext} />
           }}
           renderMessageText={RenderMessageText}
-          scrollToBottom={true}
-          showUserAvatar={true}
-          onPressAvatar={promptUsername}
-          onLongPressAvatar={(context) => {
-            return handleReply(context)
-          }}
+
           renderChatFooter={() => {
             return <RenderChatFooter
               roomId={roomId}
@@ -712,18 +698,20 @@ const ChatRoom = observer((props) => {
           }}
           renderBubble={(props) => {
             // PSM TODO: what does this need channel keys for?
-            return <RenderBubble {...props} keys={{ /* ...sbContext.socket.keys, */ ...channel.key }}
-              socket={channel.socket}
+            return <RenderBubble {...props}
+              keys={channel.keys}
               SB={SB} />
           }}
           renderSend={(props) => {
             return <RenderSend {...props}
+              connected={channel.status === 'OPEN'}
               roomId={roomId}
               inputError={inputErrored} />
           }}
+
           renderComposer={(props) => {
             return <RenderComposer {...props}
-
+              connected={channel.status === 'OPEN'}
               showFiles={loadFiles}
               showLoading={setLoading}
               roomId={roomId}
@@ -742,12 +730,7 @@ const ChatRoom = observer((props) => {
               filesAttached={files}
             />
           }}
-          onLongPress={() => false}
-          keyboardShouldPersistTaps='always'
           renderTime={RenderTime}
-          parsePatterns={() => [
-            { type: 'phone', style: {}, onPress: undefined }
-          ]}
         />
       </DropZone>
     </SafeAreaView>

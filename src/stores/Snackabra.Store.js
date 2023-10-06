@@ -1,6 +1,8 @@
 import { makeAutoObservable, makeObservable, onBecomeUnobserved, configure, toJS, observable, computed, action, autorun } from "mobx";
 import IndexedKV from "../utils/IndexedKV";
-
+import MessageWorker from "../workers/MessageWorker";
+const blob = new Blob([`(${MessageWorker})()`]);
+let worker = new Worker(URL.createObjectURL(blob), { name: '384 Message worker', writable: true, readable: true });
 
 console.log("=========== mobx-snackabra-store loading ===========")
 let SB = require('snackabra/dist/snackabra')
@@ -22,31 +24,8 @@ configure({
   disableErrorBoundaries: false
 });
 
-function getDateTimeFromTimestampPrefix(prefix) {
-
-
-  const binaryTimestamp = prefix;
-  const decimalTimestamp = parseInt(binaryTimestamp, 2);
-
-  const datetime = new Date(decimalTimestamp);
-  const year = datetime.getFullYear();
-  const month = datetime.getMonth() + 1; // Adding 1 because months are zero-based (January is 0)
-  const day = datetime.getDate();
-  const hours = datetime.getHours();
-  const minutes = datetime.getMinutes();
-  const seconds = datetime.getSeconds();
-  const millisecondsOutput = datetime.getMilliseconds();
-
-  // Format the datetime components into a string
-  return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${millisecondsOutput.toString().padStart(3, '0')}`;
-
-}
-
 class SnackabraStore {
   readyResolver;
-  SnackabraStoreReadyFlag = new Promise((resolve) => {
-    this.readyResolver = resolve;
-  });
   config = {};
   _channels = {};
   _contacts = {};
@@ -100,7 +79,6 @@ class SnackabraStore {
     this[migrate] = async (v) => {
       const sb_data = JSON.parse(await cacheDb.getItem('sb_data'));
       let channels = await getChannelsCache();
-
       switch (v) {
         case 1:
           if (sb_data) {
@@ -122,36 +100,18 @@ class SnackabraStore {
           this[migrate](3)
           return;
         case 3:
-          let contacts = await cacheDb.getItem('sb_data_contacts') || {};
+          this.getContacts();
+          let migrationPromises = [];
           for (let x in channels) {
             if (channels[x]) {
-              const channel = await cacheDb.getItem('sb_data_' + channels[x].id)
-              if (channel) {
-                console.warn('Migrating channel', channel)
-                contacts = Object.assign(contacts, channel.contacts)
-                const id = channel.id || channel._id;
-                const newChannel = new ChannelStore(this.config, id);
-                console.warn(newChannel, id, x)
-                this._channels[x] = new ChannelStore(this.config, id)
-                console.warn(this._channels[x], id, x)
-                let alias = channel.name || channel.alias
-                this._channels[x].alias = alias
-                this._channels[x].key = channel.key
-              }
+              migrationPromises.push(this.migrateChannel(channels[x].id))
             }
           }
-          this.contacts = contacts;
+          this.finalizeMigration(migrationPromises)
           break;
         default:
           throw new Error(`Unknown snackabra store migration version ${v}`)
       }
-
-      cacheDb.setItem('sb_data_migrated', {
-        timestamp: Date.now(),
-        version: v
-      }).then(() => {
-        this.readyResolver()
-      })
     }
 
     makeAutoObservable(this);
@@ -161,14 +121,50 @@ class SnackabraStore {
       db: 'sb_data',
       table: 'cache'
     });
+
     cacheDb.getItem('sb_data_migrated').then((migrated) => {
       this[migrate](migrated?.version || 1)
     })
+
     autorun(() => {
       if (Object.keys(this._contacts).length > 0) {
         cacheDb.setItem('sb_data_contacts', toJS(this._contacts))
       }
     })
+  }
+
+  finalizeMigration = (migrationPromise = []) => {
+    Promise.allSettled(migrationPromise).then(() => {
+      cacheDb.setItem('sb_data_migrated', {
+        timestamp: Date.now(),
+        version: 3
+      }).then(() => {
+        this.readyResolver()
+      })
+    })
+  }
+
+  migrateChannel = async (channelId) => {
+    cacheDb.getItem('sb_data_' + channelId).then((channel) => {
+      if (channel) {
+        console.warn('Migrating channel', channel)
+        this.mergeContacts(channel.contacts)
+        const id = channel.id || channel._id;
+        this._channels[channelId] = new ChannelStore(this.config, id)
+        let alias = channel.name || channel.alias
+        this._channels[channelId].alias = alias
+        this._channels[channelId].key = channel.key
+      }
+    })
+  }
+
+  mergeContacts = (contacts) => {
+    this.contacts = Object.assign(this.contacts, contacts)
+  }
+
+  getContacts = async () => {
+    let contacts = await cacheDb.getItem('sb_data_contacts') || {};
+    this.contacts = Object.assign(this.contacts, contacts);
   }
 
   getContact = (keyOrPubIdentifier) => {
@@ -286,6 +282,7 @@ class ChannelStore {
   _alias;
   _status = 'CLOSED'
   _key;
+  _keys;
   _socket;
   _connectionAttempts = 0;
   _messages = new Map();
@@ -312,10 +309,7 @@ class ChannelStore {
       console.log('onClose hook called')
       this.status = 'CLOSED'
       if (this._visible) {
-        setTimeout(() => {
-          console.log('reconnecting')
-          this.connect(this._messageCallback)
-        }, 500);
+        // this[makeVisible]()
       }
     }
 
@@ -329,9 +323,7 @@ class ChannelStore {
       console.error(e)
       if (this._visible) {
         console.log('reconnecting')
-        setTimeout(() => {
-          this.connect(this._messageCallback)
-        }, 500);
+        // this[makeVisible]()
       }
     }
     this.SB = new SB.Snackabra(this.config);
@@ -349,6 +341,7 @@ class ChannelStore {
               messages: toJS(this._messages),
               owner: toJS(this._owner),
               key: toJS(this._key),
+              keys: toJS(this._keys),
               motd: toJS(this._motd),
               capacity: toJS(this._capacity),
               lastSeenMessage: toJS(this.lastSeenMessage)
@@ -367,15 +360,16 @@ class ChannelStore {
     this[getChannel] = (channel) => {
       return new Promise((resolve) => {
         cacheDb.getItem('sb_data_' + channel).then(async (data) => {
-          console.log('got channel data', data)
           if (data) {
             this.id = data.id;
             this.alias = data.alias;
-            this.messages = data.messages;
             this.key = data.key;
+            this.keys = data.keys;
+            this.messages = data.messages;
             this.lastSeenMessage = data.lastSeenMessage;
             this.motd = data.motd;
             this.capacity = data.capacity;
+            // this.getChannelMessages()
             resolve(data)
           } else {
             resolve(false)
@@ -415,8 +409,13 @@ class ChannelStore {
         this._visible = true;
         console.log(this.socket)
         if (this.socket) {
-          console.log('setting status to', this.socket.status)
+          console.log('visbility change: setting status to', this.socket.status)
           this.status = this.socket.status
+          // this.status = 'LOADING'
+          // this[makeVisible]()
+          // if(this.socket.status !== 'OPEN') {
+          //   this[makeVisible]()
+          // }
         }
       }
     });
@@ -426,6 +425,36 @@ class ChannelStore {
       this[getChannel](this.id);
     }
 
+    let updateMessagesTimeout;
+    worker.onmessage = (e) => {
+      let data;
+      if (!e.error) {
+
+        switch (e.data.method) {
+          case 'addMessage':
+            let message = JSON.parse(e.data.data)
+            // if (typeof this._messageCallback === 'function') {
+            //   this._messageCallback(message);
+            // }
+            break;
+          case 'getMessages':
+            let _messages = JSON.parse(e.data.data)
+            this.messages = _messages
+            // if (typeof this._messageCallback === 'function') {
+            //   this._messageCallback(message);
+            // }
+            break
+          default:
+            console.warn('unknown worker message', data)
+
+        }
+      }
+
+    }
+  }
+
+  getChannelMessages = async () => {
+    worker.postMessage({ method: 'getMessages', channel_id: this._id })
   }
 
   get id() {
@@ -454,23 +483,21 @@ class ChannelStore {
     this[save]();
   }
 
+  get keys() {
+    return this._keys;
+  }
+
+  set keys(keys) {
+    this._keys = keys;
+    this[save]();
+  }
+
   get messages() {
     return this._messages;
   }
 
   set messages(messages) {
-    if (!messages) {
-      console.trace()
-      return
-    }
-    if (messages instanceof Map) {
-      this._messages = messages;
-    } else {
-      for (let i in messages) {
-        this._messages.set(messages[i]._id, messages[i]);
-      }
-    }
-
+    this._messages = messages;
     this[save]();
   }
 
@@ -546,7 +573,7 @@ class ChannelStore {
       try {
         this._socket.api.getOldMessages(length).then((r_messages) => {
           console.log("==== got these old messages:")
-          this.messages = r_messages
+          // this.messages = r_messages
           for (let x in r_messages) {
             let m = r_messages[x]
             this.receiveMessage(m, messageCallback)
@@ -626,7 +653,6 @@ class ChannelStore {
     this._messageCallback = messageCallback
     if (this._socket && this._socket.status === 'OPEN') {
       console.log("==== already connected to channel:" + this.id)
-      console.log(this._socket)
       return true
     }
     if (!this.id) {
@@ -646,9 +672,15 @@ class ChannelStore {
         await c.channelSocketReady;
         this.key = c.exportable_privateKey
         this.socket = c;
+        this.keys = c.keys;
         this.owner = c.owner
-        const r = await c.api.getCapacity();
-        this.capacity = r.capacity;
+        try {
+          const r = await c.api.getCapacity();
+          this.capacity = r.capacity;
+        } catch (e) {
+          console.warn(e)
+        }
+
         this.motd = c.motd;
         this.readyResolver();
         await this[save]();
@@ -662,48 +694,8 @@ class ChannelStore {
 
   };
 
-  getChannelCache = () => {
-    return {
-      id: this.id,
-      alias: toJS(this.alias),
-      messages: this.messages,
-      key: toJS(this.key),
-      lastSeenMessage: toJS(this.lastSeenMessage)
-    }
-  }
-
-  checkSocketStatus = () => {
-    if (!this._socket) {
-      return 'CLOSED'
-    }
-    return this._socket.status
-  }
-
   receiveMessage = (m) => {
-    m.createdAt = getDateTimeFromTimestampPrefix(m.timestampPrefix);
-    this.lastMessageTime = m.timestampPrefix;
-    this.lastSeenMessage = m._id
-    this.messages = this.mergeMessages(this.messages, [m]);
-    if (typeof this._messageCallback === 'function') {
-      this._messageCallback(m);
-    }
-  };
-
-  mergeMessages = (existing, received) => {
-    let merged = [];
-    for (let i = 0; i < existing.length + received.length; i++) {
-      if (received.find(itmInner => itmInner._id === existing[i]?._id)) {
-        merged.push({
-          ...existing[i],
-          ...received.find(itmInner => itmInner._id === existing[i]?._id)
-        });
-      } else {
-        if (received[i]) {
-          merged.push(received[i]);
-        }
-      }
-    }
-    return merged.sort((a, b) => a._id > b._id ? 1 : -1);
+    worker.postMessage({ method: 'addMessage', message: m })
   };
 
 }
