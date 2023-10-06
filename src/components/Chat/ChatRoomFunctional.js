@@ -24,7 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { isMobile } from 'react-device-detect';
 import SharedRoomStateContext from "../../contexts/SharedRoomState";
 import { GiftedChat } from "react-native-gifted-chat";
-import * as _ from 'lodash';
+import {uniqBy} from 'lodash';
 
 
 
@@ -621,7 +621,7 @@ const ChatRoom = observer((props) => {
           style={{
             width: '100%'
           }}
-          messages={_.uniqBy(giftedMessages, '_id')}
+          messages={uniqBy(giftedMessages, '_id')}
           onSend={sendMessages}
 
           user={user}

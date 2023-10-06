@@ -1,8 +1,9 @@
 import { makeAutoObservable, makeObservable, onBecomeUnobserved, configure, toJS, observable, computed, action, autorun } from "mobx";
 import IndexedKV from "../utils/IndexedKV";
 import MessageWorker from "../workers/MessageWorker";
+import {orderBy} from 'lodash';
 const blob = new Blob([`(${MessageWorker})()`]);
-let worker = new Worker(URL.createObjectURL(blob), { name: '384 Message worker', writable: true, readable: true });
+
 
 console.log("=========== mobx-snackabra-store loading ===========")
 let SB = require('snackabra/dist/snackabra')
@@ -303,7 +304,7 @@ class ChannelStore {
   config;
 
   constructor(config, channelId = null) {
-
+    this.worker = new Worker(URL.createObjectURL(blob), { name: '384 Message worker ' + channelId, writable: true, readable: true });
     this.config = config;
     this.config.onClose = () => {
       console.log('onClose hook called')
@@ -338,7 +339,7 @@ class ChannelStore {
             const save = {
               id: toJS(this._id),
               alias: toJS(this._alias),
-              messages: toJS(this._messages),
+              messages: orderBy(toJS(this._messages), ['createdAt'], ['asc']),
               owner: toJS(this._owner),
               key: toJS(this._key),
               keys: toJS(this._keys),
@@ -425,7 +426,7 @@ class ChannelStore {
       this[getChannel](this.id);
     }
 
-    worker.onmessage = (e) => {
+    this.worker.onmessage = (e) => {
       let data;
       if (!e.error) {
 
@@ -450,7 +451,7 @@ class ChannelStore {
   }
 
   getChannelMessages = async () => {
-    worker.postMessage({ method: 'getMessages', channel_id: this._id })
+    this.worker.postMessage({ method: 'getMessages', channel_id: this._id })
   }
 
   get id() {
@@ -697,7 +698,7 @@ class ChannelStore {
     if(updateState) {
       this.messages = [...this._messages, m]
     }
-    worker.postMessage({ method: 'addMessage', message: m, args: { updateState: updateState } })
+    this.worker.postMessage({ method: 'addMessage', message: m, args: { updateState: updateState } })
   };
 
 }
