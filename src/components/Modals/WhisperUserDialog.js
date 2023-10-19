@@ -1,13 +1,12 @@
 import * as React from "react"
-import ResponsiveDialog from "../ResponsiveDialog";
-import { Grid, TextField } from "@mui/material";
-import { StyledButton } from "../../styles/Buttons";
+import { Grid, TextField, Button } from "@mui/material";
 import { useState, useEffect } from "react";
 import { observer } from "mobx-react"
-import { SnackabraContext } from "mobx-snackabra-store";
-const SB = require('snackabra')
+import SnackabraContext from "../../contexts/SnackabraContext.js";
+import ResponsiveDialog from "../ResponsiveDialog.js";
 
 const WhisperUserDialog = observer((props) => {
+  const SB = window.SB
   const sbContext = React.useContext(SnackabraContext);
   const [open, setOpen] = useState(props.open);
 
@@ -28,13 +27,20 @@ const WhisperUserDialog = observer((props) => {
       console.log(sbContext)
       const shared_key = props.replyTo ? await sbContext.replyEncryptionKey(props.replyTo) : sbContext.sharedKey
       const cipherText = await sbCrypto.wrap(shared_key, text)
-      let sbm = new SB.SBMessage(sbContext.socket)
-      sbm.contents.whisper = cipherText
-      sbm.contents.encrypted = true;
-      sbm.contents.whispered = true;
-      if (props.replyTo) {
-        sbm.contents.reply_to = JSON.parse(props.replyTo);
+      // let sbm = new SB.SBMessage(sbContext.socket)
+      // sbm.contents.whisper = cipherText
+      // sbm.contents.encrypted = true;
+      // sbm.contents.whispered = true;
+      let newMessageContents = {
+        whisper: cipherText,
+        encrypted: true,
+        whispered: true
       }
+      if (props.replyTo) {
+        // sbm.contents.reply_to = JSON.parse(props.replyTo);
+        newMessageContents.reply_to = JSON.parse(props.replyTo)
+      }
+      let sbm = this.sbContext.newMessage(newMessageContents)
       sbm.send();
       setText('')
       setError(false)
@@ -42,7 +48,6 @@ const WhisperUserDialog = observer((props) => {
     } else {
       setError(true)
     }
-
   }
 
   return (
@@ -65,8 +70,8 @@ const WhisperUserDialog = observer((props) => {
             value={text}
           />
         </Grid>
-        <StyledButton variant={'contained'} onClick={sendWhisper}>Send</StyledButton>
-        <StyledButton variant={'contained'} onClick={props.onClose}>Cancel</StyledButton>
+        <Button variant={'contained'} onClick={sendWhisper}>Send</Button>
+        <Button variant={'contained'} onClick={props.onClose}>Cancel</Button>
       </Grid>
     </ResponsiveDialog>
   )

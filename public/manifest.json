@@ -8,18 +8,20 @@
   "short_name": "Snackabra",
   "name": "Snackabra",
   "description": "A truly private chat client",
+  "orientation": "portrait",
+  "lang": "en-US",
   "icons": [
     {
-        "src": "/android-chrome-192x192.png",
-        "sizes": "192x192",
-        "type": "image/png"
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
     },
     {
-        "src": "/android-chrome-512x512.png",
-        "sizes": "512x512",
-        "type": "image/png"
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
-],
+  ],
   "screenshots": [
     {
       "src": "/screenshot1.png",
@@ -30,6 +32,18 @@
       "src": "/screenshot2.png",
       "type": "image/png",
       "sizes": "540x720"
+    }
+  ],
+  
+  "url_handlers": [
+    {
+      "origin": "https://preview.384chat.pages.dev"
+    },
+    {
+      "origin": "https://sn.ac"
+    },
+    {
+      "origin": "https://384.chat"
     }
   ]
 

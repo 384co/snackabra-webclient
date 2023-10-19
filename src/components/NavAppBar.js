@@ -1,15 +1,16 @@
 import * as React from 'react';
 import { AppBar, Avatar, Box, Grid, Hidden, IconButton, InputAdornment, TextField, Typography } from "@mui/material";
-import AccountCircleRoundedIcon from '@mui/icons-material/AccountCircleRounded';
-import WhisperUserDialog from "./Modals/WhisperUserDialog";
+import { AccountCircleRounded, ArrowBackIos, Close } from '@mui/icons-material';
 import { observer } from "mobx-react"
-import { SnackabraContext } from "mobx-snackabra-store";
-import { Menu, Close } from '@mui/icons-material';
-import NavBarActionContext from "../contexts/NavBarActionContext";
-import RoomMenu from "../components/Rooms/RoomMenu";
+import WhisperUserDialog from "./Modals/WhisperUserDialog.js";
+import SnackabraContext from "../contexts/SnackabraContext.js";
+import NavBarActionContext from "../contexts/NavBarActionContext.js";
+import SharedRoomStateContext from "../contexts/SharedRoomState.js";
+import RoomMenu from "../components/Rooms/RoomMenu.js";
 
 const NavAppBar = observer(() => {
   const NavAppBarContext = React.useContext(NavBarActionContext)
+  const roomState = React.useContext(SharedRoomStateContext)
   const sbContext = React.useContext(SnackabraContext);
   const [openWhisper, setOpenWhisper] = React.useState(false);
   const [editingRoomId, setEditingRoomId] = React.useState(false);
@@ -31,10 +32,10 @@ const NavAppBar = observer(() => {
   }
 
   const submitName = (e) => {
+    console.log(e.keyCode)
     if (e.keyCode === 13) {
-      sbContext.updateChannelName({ name: updatedName, channelId: editingRoomId }).then(() => {
-        setEditingRoomId(false)
-      })
+      sbContext.channels[editingRoomId].alias = updatedName
+      setEditingRoomId(false)
     }
   }
 
@@ -53,13 +54,13 @@ const NavAppBar = observer(() => {
           <Grid item>
             <Hidden smUp>
               <IconButton sx={{ width: 48, height: 48, bgcolor: 'transparent' }} onClick={openMenu} color="inherit">
-                <Menu />
+                <ArrowBackIos />
               </IconButton>
             </Hidden>
           </Grid>
           <Hidden smUp>
             <Grid xs={5} item>
-              {sbContext.activeRoom && sbContext.channels[sbContext.activeRoom]?
+              {roomState.state.activeRoom && sbContext.channels[roomState.state.activeRoom] ?
                 <Grid
                   container
                   direction="row"
@@ -69,11 +70,15 @@ const NavAppBar = observer(() => {
                     <TextField
                       id={'nav_' + editingRoomId}
                       value={updatedName}
-                      style={{marginTop: 6}}
+                      style={{ marginTop: 6 }}
                       onKeyDown={submitName}
                       inputProps={{ style: { color: "#fff" } }}
                       onFocus={() => {
-                        setUpdatedName(sbContext.channels[sbContext.activeRoom].name)
+                        setUpdatedName(sbContext.channels[roomState.state.activeRoom]?.alias)
+                      }}
+                      onBlur={() => {
+                        sbContext.channels[editingRoomId].alias = updatedName
+                        setEditingRoomId(false)
                       }}
                       onChange={updateName}
                       variant="standard"
@@ -91,20 +96,20 @@ const NavAppBar = observer(() => {
                             </IconButton>
                           </InputAdornment>
                       }}
-                      autoFocus /> : <Typography noWrap>{sbContext.channels[sbContext.activeRoom].name}</Typography>
+                      autoFocus /> : <Typography noWrap>{sbContext.channels[roomState.state.activeRoom].alias}</Typography>
 
                   }
-                  {!editingRoomId ?
+                  {!editingRoomId &&
                     <RoomMenu
                       socket={sbContext.socket}
                       sbContext={sbContext}
-                      selected={sbContext.activeRoom}
-                      roomId={sbContext.activeRoom}
+                      selected={roomState.state.activeRoom}
+                      roomId={roomState.state.activeRoom}
                       editRoom={() => {
-                        editRoom(sbContext.activeRoom)
+                        editRoom(roomState.state.activeRoom)
                       }}
                     />
-                    : ''}
+                  }
                 </Grid>
                 : ''}
 
@@ -120,10 +125,10 @@ const NavAppBar = observer(() => {
               <Grid item>
                 <Typography variant='body2'>v{process.env.REACT_APP_CLIENT_VERSION}</Typography>
               </Grid>
-              {!sbContext.admin && sbContext.socket?.status === "OPEN" ?
+              {roomState.state.activeRoom && sbContext.channels[roomState.state.activeRoom] && sbContext.channels[roomState.state.activeRoom].status === "OPEN" ?
                 <Avatar onClick={() => { setOpenWhisper(true) }} sx={{ width: 48, height: 48, bgcolor: 'transparent' }}>
                   <IconButton color="inherit" component="span">
-                    <AccountCircleRoundedIcon />
+                    <AccountCircleRounded />
                   </IconButton>
                 </Avatar>
                 :
