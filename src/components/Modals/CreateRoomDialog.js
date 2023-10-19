@@ -1,6 +1,6 @@
-import React from "react";
-import ResponsiveDialog from "../ResponsiveDialog.js";
-import CreateRoom from "../Rooms/CreateRoom.js";
+import * as React from "react";
+import ResponsiveDialog from "../ResponsiveDialog";
+import CreateRoom from "../Rooms/CreateRoom";
 
 
 export default function CreateRoomDialog(props){

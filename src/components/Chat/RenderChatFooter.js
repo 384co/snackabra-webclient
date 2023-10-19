@@ -1,154 +1,101 @@
 import React from 'react'
-import { TouchableOpacity } from 'react-native';
-import { isMobile } from 'react-device-detect';
-import { Grid, CircularProgress, Paper, IconButton, LinearProgress, Fab } from "@mui/material";
-import {Close as CloseIcon, DeleteForever} from '@mui/icons-material';
-import ConfirmationDialog from '../Modals/ConfirmationDialog.js';
+import { Grid, CircularProgress, Paper, IconButton, LinearProgress, ImageList, ImageListItem } from "@mui/material";
+import CloseIcon from '@mui/icons-material/Close';
 
 const RenderChatFooter = (props) => {
-  const FileHelper = window.SBFileHelper;
-  const elementId = `preview-${props.roomId}`
   const incomingFiles = props.files
-  const [files, setFiles] = React.useState({})
-  // const [loading, setLoading] = React.useState(props.loading)
+  const [files, setFiles] = React.useState([])
+  const [loading, setLoading] = React.useState(props.loading)
+  const [containerHeight, setContainerHeight] = React.useState(50)
   const [uploading, setUploading] = React.useState(props.uploading)
-  const [isShown, setIsShown] = React.useState('')
-  const [toRemove, setToRemove] = React.useState({})
-  const [showConfirm, setShowConfirm] = React.useState(false)
-  const [thumbnailReadyPromises, setThumbnailReadyPromises] = React.useState([])
+  const [columns, setColumns] = React.useState(3)
 
-  const containerHeight = 50
+  React.useEffect(()=>{    
+    window.addEventListener('resize', handleResize)
+    window.addEventListener('orientationchange', handleResize)
+    window.addEventListener('touchmove', (e) => {
+      setTimeout(() => {
+        handleResize(e)
+      }, 400)
 
-  React.useEffect(() => {
-    setToRemove('')
-    setShowConfirm(false)
+    });
   }, [])
 
-
-  React.useEffect(() => {
-    if (incomingFiles) {
-      let _files = {}
-      console.log('FileHelper.finalFileList', FileHelper)
-      for (const [key, value] of FileHelper.finalFileList.entries()) {
-        if (value.sbImage) {
-          console.warn('value.sbImage', value)
-          _files[value.uniqueShardId] = value
-        }
-
-      }
-      console.log('_files', Object.keys(_files))
-      setFiles(_files)
+  const handleResize = (e) => {
+    const el = document.getElementById("preview-container");
+    if(el){
+      setColumns(Math.floor(el.offsetWidth / 150))
     }
 
-  }, [FileHelper, files.length, incomingFiles])
+  }
 
-  // React.useEffect(() => {
-  //   setLoading(props.loading)
-  // }, [props.loading])
+  React.useEffect(() => {
+    const getImageUrls = () => {
+      setFiles(incomingFiles)
+      let filesPromises = [];
+
+      for (let x in incomingFiles) {
+        let file = incomingFiles[x]
+        // setHeight(file)
+        filesPromises.push(file.processThumbnail())
+        handleResize()
+      }
+      // Does all image processing 15kb thumbnail, 2MB Preview and 16MB Fullsize
+      Promise.all(filesPromises).then((files) => {
+        handleResize()
+        files.forEach((file) => {
+          file.processImage()
+        })
+        // props.setFiles(files)
+      })
+    }
+    if (incomingFiles.length > 0 && incomingFiles.length !== files.length) {
+      getImageUrls()
+    } else {
+      setFiles(incomingFiles)
+    }
+
+  }, [incomingFiles])
+
+  React.useEffect(() => {
+    setLoading(props.loading)
+  }, [props.loading])
 
   React.useEffect(() => {
     setUploading(props.uploading)
-    if (!props.uploading) {
-      setFiles([])
-    }
   }, [props.uploading])
 
-  // This helps the component wait for the thumbnail to be ready before rendering it, while not blocking on the thumbnail to be ready
-  React.useEffect(() => {
-    let promises = []
-    if (thumbnailReadyPromises.length > 0) {
-      for (let i = 0; i < thumbnailReadyPromises.length; i++) {
-        const promise = thumbnailReadyPromises[i].promise
-        promises.push(promise)
-      }
-      Promise.all(promises).then(() => {
-        setThumbnailReadyPromises([])
-      })
-    }
-  }, [thumbnailReadyPromises])
-
-  const waitForThumbnail = (file) => {
-    const foundItem = thumbnailReadyPromises.find(item => item.hash === file.hash);
-    if (foundItem) {
-      return
-    }
-    setThumbnailReadyPromises(_thumbnailReadyPromises => [..._thumbnailReadyPromises, { promise: file.sbImage.thumbnailReady, hash: file.hash }])
-  }
-
-  const removeItem = (index, uniqueShardId) => {
-    try {
-      for (const [key, value] of FileHelper.finalFileList.entries()) {
-        if (value.uniqueShardId === uniqueShardId) {
-          FileHelper.globalBufferMap.delete(value.sbImage.previewDetails.uniqueShardId)
-          FileHelper.globalBufferMap.delete(value.sbImage.thumbnailDetails.uniqueShardId)
-          FileHelper.globalBufferMap.delete(value.uniqueShardId)
-          FileHelper.finalFileList.delete(value.sbImage.previewDetails.fullName)
-          FileHelper.finalFileList.delete(value.sbImage.thumbnailDetails.fullName)
-          FileHelper.finalFileList.delete(key)
-          FileHelper.ignoreProcessing.delete(value.sbImage.previewDetails.uniqueShardId)
-          FileHelper.ignoreProcessing.delete(value.sbImage.thumbnailDetails.uniqueShardId)
-        }
-      }
-    } catch (e) {
-      console.log(e)
-    }
-
-
-
-    setFiles((_files) => {
-      let newFiles = {}
-      delete _files[uniqueShardId]
-      for (const [key, value] of Object.entries(_files)) {
-        newFiles[key] = value
-      }
-      console.log('newFiles', newFiles)
-      return newFiles
-    })
-    console.log(Object.keys(files).length)
-    props.decrementFiles()
-    setIsShown('')
-    if (Object.keys(files).length === 0) {
-      props.removeInputFiles()
+  /** @param {SBImage} file */
+  const setHeight = (file) => {
+    const imageElement = document.getElementsByClassName("previewImage");
+    const height = imageElement.width / file.aspect;
+    // file.aspectRatio.then(())
+    if (height > containerHeight) {
+      setContainerHeight(height)
     }
   }
 
   const removeFiles = () => {
-    for (const [key, value] of FileHelper.finalFileList.entries()) {
-      try{
-        FileHelper.globalBufferMap.delete(value.sbImage.previewDetails.uniqueShardId)
-        FileHelper.globalBufferMap.delete(value.sbImage.thumbnailDetails.uniqueShardId)
-        FileHelper.globalBufferMap.delete(value.uniqueShardId)
-        FileHelper.finalFileList.delete(value.sbImage.previewDetails.fullName)
-        FileHelper.finalFileList.delete(value.sbImage.thumbnailDetails.fullName)
-        FileHelper.finalFileList.delete(key)
-        FileHelper.ignoreProcessing.delete(value.sbImage.previewDetails.uniqueShardId)
-        FileHelper.ignoreProcessing.delete(value.sbImage.thumbnailDetails.uniqueShardId)
-      }catch(e){
-        console.warn(e)
-      }
-
-    }
     for (let x in files) {
-      props.decrementFiles()
       delete files[x]
     }
     setFiles([])
     props.removeInputFiles()
   }
 
-  // if (loading) {
-  //   return (
-  //     <Grid sx={{ width: '100%', minHeight: "50px" }}
-  //       direction="row"
-  //       justifyContent="center"
-  //       alignItems="center"
-  //       container>
-  //       <Grid item>
-  //         <CircularProgress color="inherit" />
-  //       </Grid>
-  //     </Grid>
-  //   );
-  // }
+  if (loading) {
+    return (
+      <Grid sx={{ width: '100%', minHeight: "50px" }}
+        direction="row"
+        justifyContent="center"
+        alignItems="center"
+        container>
+        <Grid item>
+          <CircularProgress color="inherit" />
+        </Grid>
+      </Grid>
+    );
+  }
 
   if (uploading) {
     return (
@@ -162,95 +109,63 @@ const RenderChatFooter = (props) => {
     );
   }
 
-  const onLongPress = (i, shardId) => {
-    setToRemove({ index: i, shardId: shardId })
-    setShowConfirm(true)
-  }
-
-  return (
-    <Grid item>
-      <ConfirmationDialog
-        text={'Are you sure you want to remove this image?'}
-        onConfirm={() => {
-          removeItem(toRemove.index, toRemove.shardId)
-          setToRemove({})
-          setShowConfirm(false)
-        }}
-        onCancel={() => {
-          setToRemove({})
-          setShowConfirm(false)
-        }}
-        open={showConfirm} />
-      <Paper
-        id={elementId}
+  if (files.length > 0) {
+    return (
+      <Grid item>
+        <Paper 
+        id='preview-container'
         style={{
-          flexGrow: '1',
-          maxHeight: 200,
-          display: Object.keys(files).length > 0 ? 'flex' : 'none',
+          height: '30vh',
           overflow: 'hidden',
-          overflowY: "auto",
-          position: 'relative',
+          position: 'absolute',
           bottom: 0,
-          width: '100%',
-          paddingTop: 32
+          width: '100%'
         }}>
-
-        <IconButton sx={{ position: "absolute", right: 0, top: 0 }} size={'small'} onClick={removeFiles} aria-label="close">
-          <CloseIcon />
-        </IconButton>
-        <Grid columns={{ xs: 12, sm: 12, md: 12, lg:12, xl:12 }} container>
-          {Object.keys(files).map((key, index) => {
-            const file = files[key]
-            if (file.sbImage.thumbnail) {
-              return (
-                <Grid  key={index + 'img'} style={{ position: "relative" }} onMouseEnter={() => setIsShown(index + 'img')} onMouseLeave={() => setIsShown('')}
-                xs={6} sm={6} md={4} lg={3} xl={2}
-                item>
-                  <Fab onClick={() => { removeItem(index, file.uniqueShardId) }} sx={{ cursor: "pointer !important", position: 'absolute', top: 11, left: 11, opacity: isShown === index + 'img' && !isMobile ? 1 : 0 }} size="small" color="#AAA" aria-label="add">
-                    <DeleteForever />
-                  </Fab>
-                  <TouchableOpacity style={{
-                    width: "100%",
-                    height: "100%",
-                    maxHeight: 200,
-                    overflow: 'hidden',
-                    objectFit: "cover"
-                  }} disabled={!isMobile} onPress={() => { onLongPress(index, file.uniqueShardId) }} accessibilityRole='image'>
-                    <img
-                      src={`${file.sbImage.thumbnail}`}
-                      srcSet={`${file.sbImage.thumbnail}`}
+          <ImageList sx={{ width: '100%',  height: '30vh',overflowY: 'auto',}} cols={columns} rowHeight={164}>
+            {files.map((file, index) => {
+              if (file.url || file.thumbnail) {
+                return (
+                  <ImageListItem key={index + 'img'}>
+                    <img className='previewImage'
+                      width='150px'
+                      style={{ padding: 8 }}
+                      src={`${file.url ? file.url : file.thumbnail}`}
+                      srcSet={`${file.url ? file.url : file.thumbnail}`}
                       alt='Thumbnail Preview'
                       loading="lazy"
                     />
-                  </TouchableOpacity>
-                </Grid>
-              )
-            } else {
-              console.log('file.sbImage', file.sbImage)
-              // we make sure the thumbnail is ready before we render it
-              waitForThumbnail(file)
-              return (<Grid key={index + 'grid'} className='previewImage' sx={{ width: containerHeight - 8, minHeight: containerHeight - 8, padding: 8 }}
-                direction="row"
-                justifyContent="center"
-                alignItems="center"
-                container>
-                <Grid item>
-                  <CircularProgress color="inherit" />
-                </Grid>
-              </Grid>)
+                  </ImageListItem>
+                )
+              } else {
+                return (<Grid key={index + 'grid'} className='previewImage' sx={{ width: containerHeight - 8, minHeight: containerHeight - 8, padding: 8 }}
+                  direction="row"
+                  justifyContent="center"
+                  alignItems="center"
+                  container>
+                  <Grid item>
+                    <CircularProgress color="inherit" />
+                  </Grid>
+                </Grid>)
+              }
+
+            })
+
             }
 
-          })
-
-          }
-        </Grid>
-
-
-
-
-      </Paper>
-    </Grid>)
-
+            <IconButton sx={{ position: "absolute", right: 0 }} onClick={removeFiles} aria-label="close">
+              <CloseIcon />
+            </IconButton>
+          </ImageList>
+        </Paper>
+      </Grid>)
+  }
+  return (
+    <Grid sx={{ width: '100%', minHeight: "5px" }}
+      direction="row"
+      justifyContent="center"
+      alignItems="center"
+      container />
+  );
 }
 
 export default RenderChatFooter

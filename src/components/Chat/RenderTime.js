@@ -1,5 +1,6 @@
 import React from 'react'
-import { Typography, CircularProgress } from "@mui/material";
+import { Typography } from "@mui/material";
+import CircularProgress from '@mui/material/CircularProgress';
 
 const RenderTime = (props) => {
 
@@ -48,7 +49,7 @@ const RenderTime = (props) => {
         backgroundColor: 'transparent',
         color: props.currentMessage.whispered || props.position === 'left' ? '#aaa' : 'white'
       }}>
-      {String(props.currentMessage._id).match(/^sending_/) ? <Sending /> : return_str}
+      {props.currentMessage._id.match(/^sending_/) ? <Sending /> : return_str}
     </Typography>
   </div>);
 }

@@ -1,7 +1,9 @@
 import * as React from 'react';
-import {Snackbar, Alert} from '@mui/material';
-import { Portal } from '@mui/base';
-import NotificationContext from "../contexts/NotificationContext.js";
+import Snackbar from '@mui/material/Snackbar';
+import NotificationContext from "../contexts/NotificationContext";
+import Portal from '@mui/base/Portal';
+import { Alert } from "@mui/material";
+
 
 export default function NotificationBar() {
 

@@ -1,28 +1,31 @@
-import React from "react"
-import { observer } from "mobx-react"
-import { useNavigate } from "react-router-dom";
+import * as React from "react"
 import { Trans } from "@lingui/macro";
-import { Grid, Button, CircularProgress, InputAdornment, IconButton, OutlinedInput, FormControl } from "@mui/material";
-import {Visibility, VisibilityOff} from '@mui/icons-material';
-import FirstVisitDialog from "../Modals/FirstVisitDialog.js";
-import NotificationContext from "../../contexts/NotificationContext.js";
-import NavBarActionContext from "../../contexts/NavBarActionContext.js";
-import SnackabraContext from "../../contexts/SnackabraContext.js";
+import { Grid } from "@mui/material";
+import { StyledButton } from "../../styles/Buttons";
+import CircularProgress from '@mui/material/CircularProgress';
+import { useState, useContext } from "react"
+import NotificationContext from "../../contexts/NotificationContext";
+import FirstVisitDialog from "../Modals/FirstVisitDialog";
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import InputAdornment from '@mui/material/InputAdornment';
+import FormControl from '@mui/material/FormControl';
+import OutlinedInput from '@mui/material/OutlinedInput';
+import IconButton from '@mui/material/IconButton';
+import { observer } from "mobx-react"
+import { SnackabraContext } from "mobx-snackabra-store";
 
 
 const CreateRoom = observer((props) => {
-  const NavAppBarContext = React.useContext(NavBarActionContext)
   const sbContext = React.useContext(SnackabraContext);
-  const Notifications = React.useContext(NotificationContext);
-  const navigate = useNavigate();
+  const Notifications = useContext(NotificationContext);
   const isFirefox = typeof InstallTrigger !== 'undefined';
-  const [secret, setSecret] = React.useState('');
-  const [roomName, setRoomName] = React.useState('');
-  const [roomId, setRoomId] = React.useState('');
-  const [creating, setCreating] = React.useState(false);
-  const [openFirstVisit, setOpenFirstVisit] = React.useState(false);
-  const [showPassword, setShowPassword] = React.useState(false);
-  const [errored, setError] = React.useState(false);
+  const [secret, setSecret] = useState('');
+  const [roomId, setRoomId] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [openFirstVisit, setOpenFirstVisit] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [errored, setError] = useState(false);
 
   React.useEffect(() => {
     document.getElementById('sb-wc-server-secret').focus()
@@ -36,13 +39,14 @@ const CreateRoom = observer((props) => {
     Notifications.setSeverity('success');
     Notifications.setOpen(true)
     setCreating(false)
-    NavAppBarContext.setMenuOpen(false)
-    navigate("/" + roomId);
+    setTimeout(() => {
+      window.location.href = window.location.origin + `/${roomId}`
+    }, 750)
 
   }
 
-  const error = (message = 'Error creating the room') => {
-    Notifications.setMessage(message);
+  const error = () => {
+    Notifications.setMessage('Error creating the room');
     Notifications.setSeverity('error');
     Notifications.setOpen(true)
   }
@@ -50,21 +54,29 @@ const CreateRoom = observer((props) => {
 
   const createRoom = async () => {
     setCreating(true)
-    let alias = roomName || `Room ${Object.keys(sbContext.channels).length + 1}`
-    sbContext.create(secret, alias).then((channel) => {
-      setRoomId(channel.id)
+    sbContext.createRoom(secret).then((channel) => {
+      setRoomId(channel)
       setOpenFirstVisit(true)
     }).catch((e) => {
       console.error(e)
       setCreating(false)
       setError(true)
-      error(e.error || e.message)
+      error()
     })
   }
 
   const saveUsername = (newUsername) => {
-    const key = sbContext.channels[roomId].key;
-    sbContext.createContact(newUsername || 'Unamed', key)
+    return new Promise((resolve) => {
+      const _id = sbContext.user._id;
+      sbContext.username = newUsername;
+      const contacts = {}
+      const user_pubKey = JSON.parse(_id);
+      contacts[user_pubKey.x + ' ' + user_pubKey.y] = newUsername === '' ? 'Unnamed' : newUsername;
+      sbContext.contacts = contacts;
+      resolve(true)
+
+    })
+
   }
 
   const handleMouseDownPassword = (event) => {
@@ -81,6 +93,7 @@ const CreateRoom = observer((props) => {
       direction="row"
       justifyContent="flex-start"
       alignItems="flex-start">
+
       <Grid xs={12} item>
         <FormControl fullWidth variant="outlined">
           <OutlinedInput
@@ -89,7 +102,7 @@ const CreateRoom = observer((props) => {
             type={!isFirefox ? 'text' : showPassword ? 'text' : 'password'}
             value={secret}
             error={errored}
-            inputProps={{ autoFocus: true, autoComplete: "off", className: showPassword ? 'text-field' : 'password-field' }}
+            inputProps={{ autoFocus: true, autoComplete: "off",className: showPassword ? 'text-field' : 'password-field' }}
             onKeyUp={(e) => {
               if (e.keyCode === 13) {
                 createRoom()
@@ -114,41 +127,24 @@ const CreateRoom = observer((props) => {
         </FormControl>
       </Grid>
       <Grid xs={12} item>
-        <FormControl fullWidth variant="outlined">
-          <OutlinedInput
-            placeholder={'Room Name (optional)'}
-            id="sb-wc-server-name"
-            type={'text'}
-            value={roomName}
-            inputProps={{ autoFocus: false, autoComplete: "on", className: 'text-field' }}
-            onKeyUp={(e) => {
-              if (e.keyCode === 13) {
-                createRoom()
-              }
-            }}
-            onChange={(e) => {
-              setRoomName(e.target.value)
-            }}
-          />
-        </FormControl>
-      </Grid>
-      <Grid xs={12} item>
         {creating ?
-          <Button disabled variant={'outlined'}>
+          <StyledButton disabled variant={'outlined'}>
             <CircularProgress color={"success"} size={20} />
             &nbsp;Creating
-          </Button>
+          </StyledButton>
 
           :
-          <Button variant="contained" onClick={createRoom}><Trans id='new room header'>Create New
-            Room</Trans></Button>
+          <StyledButton variant="contained" onClick={createRoom}><Trans id='new room header'>Create New
+            Room</Trans></StyledButton>
         }
 
       </Grid>
       <FirstVisitDialog open={openFirstVisit} sbContext={sbContext} onClose={(username) => {
-        saveUsername(username)
-        setOpenFirstVisit(false)
-        success(roomId);
+        saveUsername(username).then(() => {
+          setOpenFirstVisit(false)
+          success(roomId);
+        })
+
       }} roomId={roomId} />
     </Grid>
   )

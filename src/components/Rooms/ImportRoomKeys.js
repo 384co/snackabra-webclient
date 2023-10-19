@@ -1,19 +1,22 @@
-import React from "react"
-import { observer } from "mobx-react"
+import * as React from "react"
 import { Trans } from "@lingui/macro";
-import { TextField, Grid, IconButton, InputAdornment, Checkbox, OutlinedInput, Typography, Button } from "@mui/material";
-import NotificationContext from "../../contexts/NotificationContext.js";
-import SnackabraContext from "../../contexts/SnackabraContext.js";
+import { FormControl, TextField, Grid, IconButton, InputAdornment, Checkbox, OutlinedInput, Typography } from "@mui/material";
+import { StyledButton } from "../../styles/Buttons";
+import { useState, useContext } from "react"
+import NotificationContext from "../../contexts/NotificationContext";
+import { observer } from "mobx-react"
+import { SnackabraContext } from "mobx-snackabra-store";
+import ContentCopy from '@mui/icons-material/ContentCopy';
 
 const ImportRoomKeys = observer((props) => {
   const sbContext = React.useContext(SnackabraContext);
-  const Notifications = React.useContext(NotificationContext)
-  const [key, setKey] = React.useState('');
-  const [data, setData] = React.useState(false);
-  const [existing, setExisting] = React.useState({});
-  const [toSave, setToSave] = React.useState({ roomData: {}, contacts: {}, roomMetadata: {} });
-  const [toMerge, setToMerge] = React.useState({});
-  const [selected, setSelected] = React.useState([]);
+  const Notifications = useContext(NotificationContext)
+  const [key, setKey] = useState('');
+  const [data, setData] = useState(false);
+  const [existing, setExisting] = useState({});
+  const [toSave, setToSave] = useState({roomData:{}, contacts:{}, roomMetadata:{}});
+  const [toMerge, setToMerge] = useState({});
+  const [selected, setSelected] = useState([]);
 
   React.useEffect(() => {
     if (data) {
@@ -29,25 +32,27 @@ const ImportRoomKeys = observer((props) => {
   }, [data])
 
   React.useEffect(() => {
-    const metadata = { roomData: {}, contacts: sbContext.contacts, roomMetadata: {} }
-    const rooms = sbContext.channels
-    for (let x in rooms) {
-      let roomId = rooms[x].id
-      metadata.roomData[roomId] = {
-        key: rooms[roomId].key,
-        lastSeenMessage: rooms[roomId].lastSeenMessage
+    const metadata = { roomData: {}, contacts: {}, roomMetadata: {} }
+    sbContext.getAllChannels().then((rooms) => {
+      for (let x in rooms) {
+        let roomId = rooms[x].id
+        metadata.roomData[roomId] = {
+          key: rooms[roomId].key,
+          lastSeenMessage: rooms[roomId].lastSeenMessage
+        }
+        metadata.contacts = Object.assign(metadata.contacts, rooms[roomId].contacts)
+        metadata.roomMetadata[roomId] = {
+          name: rooms[roomId].name,
+          lastMessageTime: rooms[roomId].lastMessageTime,
+          unread: false
+        }
       }
-      metadata.roomMetadata[roomId] = {
-        name: rooms[roomId].name,
-        lastMessageTime: rooms[roomId].lastMessageTime,
-        unread: false
-      }
-    }
-    metadata.pem = false;
-    console.log(metadata)
-    setExisting(metadata)
+      metadata.pem = false;
+      console.log(metadata)
+      setExisting(metadata)
+    })
 
-  }, [sbContext])
+  }, [])
 
   let fileReader;
 
@@ -123,10 +128,10 @@ const ImportRoomKeys = observer((props) => {
         setToMerge(merge)
         setSelected(s)
         const roomData = Object.keys(newKeyData.roomData)
-        console.log(roomData)
-        console.log(Object.assign(existing.contacts, newKeyData.contacts))
-        newKeyData.contacts = Object.assign(newKeyData.contacts, existing.contacts)
-        setToSave(newKeyData)
+        if (roomData.length > 0) {
+          newKeyData.contacts = Object.assign(newKeyData.contacts, existing.contacts)
+          setToSave(newKeyData)
+        }
       } else {
         await sbContext.importKeys(content ? JSON.parse(content) : JSON.parse(key))
         Notifications.setMessage('Key file imported!');
@@ -165,17 +170,18 @@ const ImportRoomKeys = observer((props) => {
     console.log(toMerge)
     const saving = toSave;
     for (let x in selected) {
+      console.log(toMerge[x][selected[x].selected])
       saving.roomData = Object.assign(saving.roomData, toMerge[x][selected[x].selected].roomData)
       saving.roomMetadata = Object.assign(saving.roomMetadata, toMerge[x][selected[x].selected].roomMetadata)
     }
-    sbContext.importKeys(saving).then(() => {
+    sbContext.importKeys(saving).then(()=>{
       Notifications.setMessage('Key file imported!');
       Notifications.setSeverity('success');
       Notifications.setOpen(true)
       if (typeof props.onDone === 'function') {
-        // props.onDone()
+        props.onDone()
       }
-    }).catch((e) => {
+    }).catch((e)=>{
       console.error(e)
       Notifications.setMessage(e.message);
       Notifications.setSeverity('error');
@@ -196,7 +202,7 @@ const ImportRoomKeys = observer((props) => {
         <>
 
           <Grid xs={12} item>
-            <Button
+            <StyledButton
               variant="contained"
               component="label"
             >
@@ -206,7 +212,7 @@ const ImportRoomKeys = observer((props) => {
                 type="file"
                 hidden
               />
-            </Button>
+            </StyledButton>
           </Grid>
           <Grid xs={12} item>
             <Typography variant={'body1'} gutterBottom><Trans id='key import paste message'>Or paste the keys you want to import</Trans></Typography>
@@ -233,7 +239,7 @@ const ImportRoomKeys = observer((props) => {
             />
           </Grid>
           <Grid xs={12} item>
-            <Button variant="contained" onClick={() => { importKeys() }}><Trans id='key import header'>Import Keys</Trans></Button>
+            <StyledButton variant="contained" onClick={() => { importKeys() }}><Trans id='key import header'>Import Keys</Trans></StyledButton>
           </Grid>
 
         </> :
@@ -324,7 +330,7 @@ const ImportRoomKeys = observer((props) => {
 
           }
           <Grid xs={12} sx={{ pt: 1 }} item>
-            <Button variant="contained" onClick={() => { saveConflicts() }}>Submit</Button>
+            <StyledButton variant="contained" onClick={() => { saveConflicts() }}>Submit</StyledButton>
           </Grid>
         </Grid>
       }

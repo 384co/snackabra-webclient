@@ -4,7 +4,6 @@ import BugReportIcon from "@mui/icons-material/BugReport";
 import { Fab } from "@mui/material";
 import DebugOverlay from "../components/Modals/DebugOverlay";
 import NavBarActionContext from "./NotificationContext";
-import NavBarActionContext from "./NotificationContext";
 const LogContext = React.createContext(undefined);
 
 let log = console.log;
@@ -23,7 +22,7 @@ const fabRedStyle = {
   },
 };
 
-export const LogProvider = ({ children }) => {
+export const LogProvider = ({children }) => {
   const notify = React.useContext(NavBarActionContext)
   const [logs, setLogs] = React.useState([])
   const [enabled, setEnabled] = React.useState(false)
@@ -33,7 +32,6 @@ export const LogProvider = ({ children }) => {
     const url = new URL(window.location.href);
     const params = new URLSearchParams(url.search);
     const hasParam = (params.get('debug') === 'true' || params.get('debug') === '1' || params.get('debug') === 'on')
-    const logEvents = (params.get('events') === 'true' || params.get('events') === '1' || params.get('events') === 'on')
     if (hasParam) {
       setEnabled(true)
 
@@ -85,65 +83,58 @@ export const LogProvider = ({ children }) => {
     }
     if (process.env.REACT_APP_LOG_LEVEL && !hasParam) {
       const level = process.env.REACT_APP_LOG_LEVEL
-      // if (level === 'development') {
-      // }
-      // if (level === 'stage') {
-      //   console.log = function () { }
-      //   console.assert = function () { }
-      //   console.count = function () { }
-      //   console.debug = function () { }
-      //   console.dir = function () { }
-      //   console.dirxml = function () { }
-      //   console.group = function () { }
-      //   console.table = function () { }
-      //   console.tine = function () { }
-      //   console.timeEnd = function () { }
-      //   console.timeLog = function () { }
-      //   console.trace = function () { }
-      // }
-      // if (level === 'production') {
-      //   console.log = function () { }
-      //   console.warn = function () { }
-      //   console.assert = function () { }
-      //   console.count = function () { }
-      //   console.debug = function () { }
-      //   console.dir = function () { }
-      //   console.dirxml = function () { }
-      //   console.group = function () { }
-      //   console.table = function () { }
-      //   console.tine = function () { }
-      //   console.timeEnd = function () { }
-      //   console.timeLog = function () { }
-      //   console.trace = function () { }
-      // }
-      window.addEventListener('popstate', (e) => {
-        e.preventDefault();
-      });
-
-      if (logEvents) {
-        Object.keys(window).forEach(key => {
-          if (/./.test(key)) {
-            window.addEventListener(key.slice(2), event => {
-              console.log(key, event)
-            })
-          }
-        })
+      if (level === 'development') {
       }
+      if (level === 'stage') {
+        console.log = function () { }
+        console.assert = function () { }
+        console.count = function () { }
+        console.debug = function () { }
+        console.dir = function () { }
+        console.dirxml = function () { }
+        console.group = function () { }
+        console.table = function () { }
+        console.tine = function () { }
+        console.timeEnd = function () { }
+        console.timeLog = function () { }
+        console.trace = function () { }
+      }
+      if (level === 'production') {
+        console.log = function () { }
+        console.warn = function () { }
+        console.assert = function () { }
+        console.count = function () { }
+        console.debug = function () { }
+        console.dir = function () { }
+        console.dirxml = function () { }
+        console.group = function () { }
+        console.table = function () { }
+        console.tine = function () { }
+        console.timeEnd = function () { }
+        console.timeLog = function () { }
+        console.trace = function () { }
+      }
+      // Object.keys(window).forEach(key => {
+      //   if (/./.test(key)) {
+      //     window.addEventListener(key.slice(2), event => {
+      //       console.log(key, event)
+      //     })
+      //   }
+      // })
 
-
-      window.onunhandledrejection = (error) => {
-        if (notify) {
+      window.onunhandledrejection = (error) =>{
+        if(notify){
           console.log(notify)
           notify.setMessage("An uncaught exception has occured, view the console for details");
           notify.setSeverity("error");
           notify.setOpen(true)
           console.trace(error)
         }
-
+        
       }
 
     }
-  }, [logs, notify])
+  }, [])
 
   const toggleDebugger = () => {
     setOpened(!open)
