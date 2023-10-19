@@ -1,43 +1,46 @@
 import * as React from "react"
-import ResponsiveDialog from "../ResponsiveDialog";
-import { Grid, OutlinedInput } from "@mui/material";
-import { StyledButton } from "../../styles/Buttons";
-import { useState, useEffect } from "react";
-import { observer } from "mobx-react"
-import { SnackabraContext } from "mobx-snackabra-store";
+import { Grid, OutlinedInput, Button } from "@mui/material";
+import ResponsiveDialog from "../ResponsiveDialog.js";
 
 
-const ChangeNameDialog = observer((props) => {
-  const sbContext = React.useContext(SnackabraContext);
-  const [open, setOpen] = useState(props.open);
-  const [username, setUsername] = useState(props.name);
+const ChangeNameDialog = (props) => {
+  const [open, setOpen] = React.useState(props.open);
+  const [username, setUsername] = React.useState(props.name || "");
 
-  useEffect(() => {
+  React.useEffect(() => {
     setOpen(props.open)
   }, [props.open])
 
-  useEffect(() => {
-    setUsername(props.name)
+  React.useEffect(() => {
+    if (props.name) {
+      setUsername(props.name)
+    }
+
   }, [props.name])
 
   const updateUsername = (e) => {
     setUsername(e.target.value)
   }
 
+  const checkForEnter = (e) => {
+    if (e.keyCode === 13) {
+      saveUserName()
+    }
+  }
+
   const setMe = () => {
     setUsername('Me')
-    sbContext.username = username
-    props.onClose(sbContext.username, props._id)
+    props.onClose('Me', props._id)
   }
 
   const saveUserName = () => {
     props.onClose(username, props._id)
   }
 
-  const close = () =>{
-    props.onClose(username, props._id)
+  const close = () => {
+    props.onClose()
   }
-
+  
   return (
     <ResponsiveDialog title={'Change Username'} open={open} onClose={close} showActions>
       <Grid container
@@ -47,14 +50,15 @@ const ChangeNameDialog = observer((props) => {
         <Grid item xs={12} sx={{ pb: 1 }}>
           <OutlinedInput placeholder="Please enter text"
             value={username}
+            onKeyUp={checkForEnter}
             onChange={updateUsername} fullWidth />
         </Grid>
-        <StyledButton variant={'outlined'} onClick={saveUserName}>Save</StyledButton>
-        <StyledButton variant={'outlined'} onClick={setMe}>Me</StyledButton>
+        <Button variant={'outlined'} onClick={saveUserName}>Save</Button>
+        <Button variant={'outlined'} onClick={setMe}>Me</Button>
       </Grid>
     </ResponsiveDialog>
   )
 
-})
+}
 
 export default ChangeNameDialog

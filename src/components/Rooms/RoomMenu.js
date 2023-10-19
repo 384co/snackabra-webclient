@@ -1,22 +1,25 @@
 import * as React from 'react';
-import IconButton from '@mui/material/IconButton';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import MenuList from '@mui/material/MenuList';
-import ListItemText from '@mui/material/ListItemText';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
-import IosShareOutlinedIcon from '@mui/icons-material/IosShareOutlined';
-import NotificationContext from "../../contexts/NotificationContext";
-import ConnectionStatus from "./ConnectionStatus"
+import { useParams } from "react-router-dom";
+import { observer } from "mobx-react"
+import { IconButton, Menu, MenuItem, MenuList, ListItemText, ListItemIcon } from '@mui/material';
+import { IosShareOutlined as IosShareOutlinedIcon, FileDownloadOutlined as FileDownloadOutlinedIcon, MoreVert as MoreVertIcon, Call as CallIcon, EditOutlined as EditOutlinedIcon, Collections as CollectionsIcon } from '@mui/icons-material';
+import NotificationContext from "../../contexts/NotificationContext.js";
+import ConnectionStatus from "./ConnectionStatus.js"
+import SharedRoomStateContext from "../../contexts/SharedRoomState.js";
+import SnackabraContext from "../../contexts/SnackabraContext.js";
+import { downloadFile } from "../../utils/misc.js"
+import CallWindow from '../Modals/CallWindow.js';
+
 
 const ITEM_HEIGHT = 48;
 
-const RoomMenu = (props) => {
-  const Notifications = React.useContext(NotificationContext)
+const RoomMenu = observer((props) => {
+  let { room_id } = useParams();
+  const sbContext = React.useContext(SnackabraContext);
+  const notify = React.useContext(NotificationContext);
+  const roomState = React.useContext(SharedRoomStateContext);
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [openCallWindow, setOpenCallWindow] = React.useState(false);
   const open = Boolean(anchorEl);
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -26,47 +29,61 @@ const RoomMenu = (props) => {
   };
 
   const copy = async () => {
-    console.log(window.location)
     if ('clipboard' in navigator) {
       await navigator.clipboard.writeText(window.location.origin + '/' + props.roomId);
     } else {
       document.execCommand('copy', true, window.location.origin + '/' + props.roomId);
     }
-    Notifications.setMessage('Room URL copied to clipboard!');
-    Notifications.setSeverity('success');
-    Notifications.setOpen(true)
+    notify.setMessage('Room URL copied to clipboard!');
+    notify.setSeverity('success');
+    notify.setOpen(true)
     handleClose()
 
   }
 
-  const getRoomData = (roomId) => {
-    props.sbContext.downloadRoomData().then((data) => {
-      delete data.channel.SERVER_SECRET
-      downloadFile(JSON.stringify(data.channel), props.sbContext.rooms[props.roomId].name + "_data.txt");
-    })
-  }
-
-  const getRoomStorage = (roomId) => {
-    props.sbContext.downloadRoomData().then((data) => {
-      downloadFile(JSON.stringify(data.storage), props.sbContext.rooms[props.roomId].name + "_shards.txt")
-    })
-  }
-
-  const downloadFile = (text, file) => {
+  const getRoomData = React.useCallback(async (roomId) => {
     try {
-      let element = document.createElement('a');
-      element.setAttribute('href', 'data:text/plain;charset=utf-8, ' + encodeURIComponent(text));
-      element.setAttribute('download', file);
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
-    } catch (error) {
-      console.log(error);
+      const room = sbContext.channels[roomId]
+      room.downloadData(roomId, room.key).then((data) => {
+        downloadFile(btoa(JSON.stringify(data.channel, null, 2)), room.alias + "_data.txt", 'text/plain;charset=utf-8')
+      }).catch((e) => {
+        console.error(e)
+        notify.error('Error downloading file')
+      })
+    } catch (e) {
+      console.error(e)
+      notify.error('Error downloading file')
     }
+
+  }, [notify, sbContext])
+
+  const getRoomStorage = React.useCallback(async (roomId) => {
+    try {
+      const room = sbContext.channels[roomId]
+      room.downloadData(roomId, room.key).then((data) => {
+        downloadFile(btoa(JSON.stringify(data.storage, null, 2)), room.alias + "_shards.txt", 'text/plain;charset=utf-8')
+      }).catch((e) => {
+        console.error(e)
+        notify.error('Error downloading file')
+      })
+    } catch (e) {
+      console.error(e)
+      notify.error('Error downloading file')
+    }
+
+  }, [notify, sbContext])
+
+  const startOrJoinCall = () => {
+    setOpenCallWindow(true)
   }
 
+  const closeCallWindow = () => {
+    setOpenCallWindow(false)
+  }
   return (
-    <div>
+    <div style={{ position: 'relative' }}>
+      <CallWindow open={openCallWindow} onClose={closeCallWindow} room={props.roomId} keys={sbContext.channels[props.roomId].key} />
+
       <IconButton
         aria-label="more"
         id="long-button"
@@ -75,8 +92,14 @@ const RoomMenu = (props) => {
         aria-haspopup="true"
         onClick={handleClick}
       >
-        <MoreVertIcon sx={{ color: props.selected ? '#fff' : 'inherit' }} />
+        {((room_id === props.roomId || (!room_id && props.roomId)) && props.selected) ?
+          <ConnectionStatus roomId={props.roomId} >
+            <MoreVertIcon sx={{ color: props.selected ? '#fff' : 'inherit' }} />
+          </ConnectionStatus>
+          : <MoreVertIcon sx={{ color: props.selected ? '#fff' : 'inherit' }} />
+        }
       </IconButton>
+
       <Menu
         id="long-menu"
         MenuListProps={{
@@ -87,7 +110,7 @@ const RoomMenu = (props) => {
         onClose={handleClose}
         PaperProps={{
           style: {
-            maxHeight: ITEM_HEIGHT * 4.5,
+            maxHeight: ITEM_HEIGHT * 6,
             width: '20ch',
           },
         }}
@@ -102,40 +125,33 @@ const RoomMenu = (props) => {
             </ListItemIcon>
             <ListItemText>Edit Name</ListItemText>
           </MenuItem>
-          {props.socket?.status === 'OPEN' && props.selected ?
-            <MenuItem onClick={() => {
-              handleClose()
-              getRoomData()
-            }}>
-              <ListItemIcon>
-                <FileDownloadOutlinedIcon />
-              </ListItemIcon>
-              <ListItemText>Get Channel</ListItemText>
-            </MenuItem> : ''
-          }
-          {props.socket?.status === 'OPEN' && props.selected ?
-            <MenuItem onClick={() => {
-              handleClose()
-              getRoomStorage()
-            }}>
-              <ListItemIcon>
-                <FileDownloadOutlinedIcon />
-              </ListItemIcon>
-              <ListItemText>Get Shards</ListItemText>
-            </MenuItem> : ''
-          }
-
-          {/* {props.socket?.status === 'OPEN' && props.selected ?
-            <MenuItem onClick={() => {
-              handleClose()
-              props.exportKeys()
-            }}>
-              <ListItemIcon>
-                <FileDownloadOutlinedIcon />
-              </ListItemIcon>
-              <ListItemText>Export Keys</ListItemText>
-            </MenuItem> : ''
-          } */}
+          <MenuItem onClick={() => {
+            roomState.setOpenImageGallery(true)
+            handleClose()
+          }}>
+            <ListItemIcon>
+              <CollectionsIcon />
+            </ListItemIcon>
+            <ListItemText>Images</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={() => {
+            handleClose()
+            getRoomData(props.roomId)
+          }}>
+            <ListItemIcon>
+              <FileDownloadOutlinedIcon />
+            </ListItemIcon>
+            <ListItemText>Get Channel</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={() => {
+            handleClose()
+            getRoomStorage(props.roomId)
+          }}>
+            <ListItemIcon>
+              <FileDownloadOutlinedIcon />
+            </ListItemIcon>
+            <ListItemText>Get Shards</ListItemText>
+          </MenuItem>
           <MenuItem onClick={copy}>
             <ListItemIcon>
               <IosShareOutlinedIcon />
@@ -144,14 +160,18 @@ const RoomMenu = (props) => {
           </MenuItem>
         </MenuList>
       </Menu>
-      {props.selected ?
-        <ConnectionStatus />
-        : ''
-
+      {((room_id === props.roomId || (!room_id && props.roomId)) && props.selected && process.env.REACT_APP_FEATURE_FLAG_ENABLE_VIOP === 'true') ?
+        <IconButton
+          aria-label="cancel room rename"
+          edge="end"
+        >
+          <CallIcon sx={{ color: "#fff" }} onClick={startOrJoinCall} />
+        </IconButton> : ''
       }
-
     </div>
   );
-}
+})
+
+
 
 export default RoomMenu

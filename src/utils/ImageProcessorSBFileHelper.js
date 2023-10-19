@@ -1,20 +1,18 @@
-// #########################    FUNCTIONS TO HANDLE ALL IMAGE PROCESSING   ###########################################
-// ##
-// ## PLEASE NOTE: as of today (20221020) moving this to snackabra.ts in the 0.5 ('typescript') branch
-// ##              ... and starting to clean up as a TS set of utils
-
-// TODO - can be optimized (asynchronized more) to return the hashes once calculated
-// and then do all the encryption stuff.
-
-// import * as utils from "./utils";
-// import config from "../config";
-// import { encrypt, getImageKey } from "./crypto";
-// import { decrypt } from "./utils";
+/**
+ *This is a version of the image processor that is compatible with the SBFileHelper
+ */
 
 import ImageWorker from './ImageWorker.js';
 import ArrayBufferWorker from './ArrayBufferWorker.js';
 
-import { _appendBuffer } from "snackabra";
+
+//Pulled from jslib
+function _appendBuffer(buffer1, buffer2) {
+  const tmp = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
+  tmp.set(new Uint8Array(buffer1), 0);
+  tmp.set(new Uint8Array(buffer2), buffer1.byteLength);
+  return tmp.buffer;
+}
 
 export async function getFileData(file, outputType) {
   try {
@@ -35,16 +33,6 @@ export async function getFileData(file, outputType) {
   }
 }
 
-
-// refactoring from using raw photo to using SBImage object
-// change: imageType, qualityArgument both hardcoded
-
-// helper
-// maxSize: target (max) size in KB
-// _c: full image on starting point canvas (eg sbImage.canvas)
-// _b1: blob version (eg sbImage.blob)
-
-//MTG: this needs futher optimizations
 export async function _restrictPhoto(maxSize, _c, _b1, scale, canvas) {
   const t2 = new Date().getTime();
   const imageType = "image/jpeg";
@@ -56,18 +44,12 @@ export async function _restrictPhoto(maxSize, _c, _b1, scale, canvas) {
   }
   console.log(`Starting size ${_size} too large (max is ${maxSize}) bytes.`)
   console.log(`Reduce size by scaling canvas - start size is W ${_c.width} x H ${_c.height}`)
-  // compression wasn't enough, so let's resize until we're getting close
 
   let _old_size;
   let _old_c;
 
-  // while (_size > maxSize) {
   _old_c = _c;
-  // _c = scaleCanvas(_c, .95);
-  // _b1 = await new Promise((resolve) => {
-  //   // TODO: lint reports this as unsafe use of reference to _c
-  //   _c.toBlob(resolve, imageType, qualityArgument);
-  // });
+
   _old_size = _size;
   _size = _b1.size;
   // workingDots();
@@ -80,23 +62,21 @@ export async function _restrictPhoto(maxSize, _c, _b1, scale, canvas) {
   let _ratio = (maxSize / _old_size) * scale; // overshoot a bit
   console.warn("scale is:")
   console.warn(scale);
-  // releaseCanvas(_c);
   console.log(`... stepping back up to W ${_old_c.width} x H ${_old_c.height} and will then try scale ${_ratio.toFixed(4)}`);
   let _final_c = canvas;
   // we assume that within this width interval, storage is roughly prop to area,
   // with a little tuning downwards
   let _maxIteration = 12;  // to be safe
   console.log("_old_c is:")
-  // console.log(_old_c);
   console.log(`... stepping back up to W ${_old_c.width} x H ${_old_c.height} and will then try scale ${_ratio.toFixed(4)}`);
   const t4 = new Date().getTime();
   do {
     _final_c = scaleCanvas(_old_c, Math.sqrt(_ratio) * 0.95, _final_c); // always overshoot
+    // eslint-disable-next-line no-loop-func
     _b1 = await new Promise((resolve) => {
       _final_c.toBlob(resolve, imageType, qualityArgument);
       console.log(`(generating blob of requested type ${imageType})`);
     });
-    // workingDots();
     console.log(`... fine-tuning to W ${_final_c.width} x H ${_final_c.height} (size ${_b1.size})`);
     _ratio *= (maxSize / _b1.size);
     const t5 = new Date().getTime();
@@ -108,79 +88,6 @@ export async function _restrictPhoto(maxSize, _c, _b1, scale, canvas) {
   return _b1;
 }
 
-// export async function _restrictPhoto(maxSize, _c, _b1) {
-//   const t2 = new Date().getTime();
-//   const imageType = "image/jpeg";
-//   const qualityArgument = 0.92;
-//   let _size = _b1.size;
-//   if (_size <= maxSize) {
-//     console.log(`Starting size ${_size} is fine (below target size ${maxSize}`);
-//     return _b1;
-//   }
-//   console.log(`Starting size ${_size} too large (max is ${maxSize}) bytes.`)
-//   console.log(`Reduce size by scaling canvas - start size is W ${_c.width} x H ${_c.height}`)
-//   // compression wasn't enough, so let's resize until we're getting close
-
-//   let _old_size;
-//   let _old_c;
-//   if (false) {
-//     // experiments: we first cut it with quality argument (normalize)
-//     _b1 = await new Promise((resolve) => {
-//       _c.toBlob(resolve, imageType, qualityArgument);
-//     });
-//     console.log(`setting quality changed size from ${_size} to ${_b1.size}`);
-//     await createImageBitmap(_b1).then(bm => {_c.getContext('2d').drawImage(bm,0,0)});
-//     _size = _b1.size;
-//     // now we do a *single* big adjustment
-//     _c = scaleCanvas(_c, Math.sqrt(maxSize / _size));
-//     _old_c = _c
-//     _b1 = await new Promise((resolve) => {
-//       _c.toBlob(resolve, imageType, qualityArgument);
-//     });
-//     _size = _b1.size;
-//     _old_size = _size;
-//     const t3 = new Date().getTime();
-//     console.log(`... reduced to W ${_c.width} x H ${_c.height} (to size ${_size}) ... total time ${t3 - t2} milliseconds`);
-//   } else {
-//     while (_size > maxSize) {
-//       _old_c = _c;
-//       _c = scaleCanvas(_c, .5);
-//       _b1 = await new Promise((resolve) => {
-// 	_c.toBlob(resolve, imageType, qualityArgument);
-//       });
-//       _old_size = _size;
-//       _size = _b1.size;
-//       // workingDots();
-//       const t3 = new Date().getTime();
-//       console.log(`... reduced to W ${_c.width} x H ${_c.height} (to size ${_size}) ... total time ${t3 - t2} milliseconds`);
-//     }
-//   }
-
-//   // we assume that within this width interval, storage is roughly prop to area,
-//   // with a little tuning downwards
-//   let _ratio = (maxSize / _old_size) * 0.95; // overshoot a bit
-//   let _maxIteration = 12;  // to be safe
-//   console.log("_old_c is:")
-//   console.log(_old_c);
-//   console.log(`... stepping back up to W ${_old_c.width} x H ${_old_c.height} and will then try scale ${_ratio.toFixed(4)}`);
-//   let _final_c;
-//   const t4 = new Date().getTime();
-//   do {
-//     _final_c = scaleCanvas(_old_c, Math.sqrt(_ratio) * 0.95); // always overshoot
-//     _b1 = await new Promise((resolve) => {
-//       _final_c.toBlob(resolve, imageType, qualityArgument);
-//       console.log(`(generating blob of requested type ${imageType})`);
-//     });
-//     // workingDots();
-//     console.log(`... fine-tuning to W ${_final_c.width} x H ${_final_c.height} (size ${_b1.size})`);
-//     _ratio *= (maxSize / _b1.size);
-//     const t5 = new Date().getTime();
-//     console.log(`... resulting _ratio is ${_ratio} ... total time here ${t5 - t4} milliseconds`);
-//     console.log(` ... we're within ${(Math.abs(_b1.size - maxSize) / maxSize)} of cap (${maxSize})`);
-//   } while (((_b1.size > maxSize) || ((Math.abs(_b1.size - maxSize) / maxSize) > 0.10)) && (--_maxIteration > 0));  // we're pretty tolerant here
-
-//   return _b1;
-// }
 
 function releaseCanvas(canvas) {
   canvas.width = 1;
@@ -204,13 +111,9 @@ export async function restrictPhoto(sbImage, maxSize, type) {
     case 'preview':
       scale = .50;
       break;
-    case 'full':
-      scale = .90
-      break;
     default:
-      scale = .95
+      scale = 1;
       break;
-
   }
   const t0 = new Date().getTime();
   // imageType default should be 'image/jpeg'
@@ -242,6 +145,7 @@ export async function restrictPhoto(sbImage, maxSize, type) {
   return _final_b1;
 }
 
+
 export function scaleCanvas(canvas, scale, sCanvas) {
 
   var start = new Date().getTime();
@@ -252,13 +156,13 @@ export function scaleCanvas(canvas, scale, sCanvas) {
   }
   scaledCanvas.width = canvas.width * scale;
   scaledCanvas.height = canvas.height * scale;
-  // console.log(`#### scaledCanvas starting with W ${canvas.width} x H ${canvas.height}`);
+  console.log(`#### scaledCanvas starting with W ${canvas.width} x H ${canvas.height}`);
   const ctx = scaledCanvas.getContext('2d')
   if (ctx) {
     ctx.drawImage(canvas, 0, 0, scaledCanvas.width, scaledCanvas.height);
-    // console.log(`#### scaledCanvas actual W ${scaledCanvas.width} x H ${scaledCanvas.height}`);
+    console.log(`#### scaledCanvas actual W ${scaledCanvas.width} x H ${scaledCanvas.height}`);
     var end = new Date().getTime();
-    // console.log(`#### scaleCanvas() took ${end - start} milliseconds`);
+    console.log(`#### scaleCanvas() took ${end - start} milliseconds`);
     console.log(`#### scaledCanvas scale ${scale} to target W ${scaledCanvas.width} x H ${scaledCanvas.height} took ${end - start} milliseconds`);
     return scaledCanvas;
   } else {
@@ -267,13 +171,11 @@ export function scaleCanvas(canvas, scale, sCanvas) {
 
 }
 
-
-
 export function padImage(image_buffer) {
   let _sizes = [128, 256, 512, 1024, 2048, 4096];   // in KB
   _sizes = _sizes.map((size) => size * 1024);
   const image_size = image_buffer.byteLength;
-  // console.log('BEFORE PADDING: ', image_size)
+  console.log('BEFORE PADDING: ', image_size)
   let _target;
   if (image_size < _sizes[_sizes.length - 1]) {
     for (let i = 0; i < _sizes.length; i++) {
@@ -296,12 +198,11 @@ export function padImage(image_buffer) {
   for (let i = 0; i < _target; i++) {
     _padding_array.push(0);
   }
-  // _padding_array.push(image_size);
   const _padding = new Uint8Array(_padding_array).buffer;
   console.log('Padding size: ', _padding.byteLength)
   let final_data = _appendBuffer(image_buffer, _padding);
   final_data = _appendBuffer(final_data, new Uint32Array([image_size]).buffer);
-  // console.log('AFTER PADDING: ', final_data.byteLength)
+  console.log('AFTER PADDING: ', final_data.byteLength)
   return final_data;
 }
 
@@ -353,15 +254,19 @@ function readJpegHeader(bytes) {
 export class SBImage {
   SB;
   imageBuffer;
+  thumbnailDetails = {};
+  previewDetails = {};
   /**
-   * 
-   * @param {File} image 
-   * @param {Snackabra} SB 
+   *
+   * @param {File} image
+   * @param {Snackabra} SB
    */
-  constructor(image, SB) {
-    this.SB = SB
-    this.image = image; // file
-
+  constructor(buffer, SBFileHelperFile) {
+    this.SB = window.SB
+    this.SBFile = SBFileHelperFile;
+    const blob = new Blob([buffer]);
+    const image = new File([blob], SBFileHelperFile.name);
+    this.image = image;
 
     this.thumbnailReady = new Promise((resolve) => {
       // block on getting width and height...
@@ -381,7 +286,7 @@ export class SBImage {
 
     // Fetch the original image
     console.log("Fetching file:");
-    console.log(image);
+    console.log(buffer);
     this.imgURL = new Promise((resolve) => {
       new Promise(() => {
         const _self = this;
@@ -496,29 +401,40 @@ export class SBImage {
     });
   }
 
-  getStorePromises = (roomId) => {
-    return new Promise(resolve => {
-      this.processingReady.then(() => {
-        const previewStorePromise = this.SB.storage.storeObject(this.objectMetadata.preview.paddedBuffer, 'p', roomId, this.objectMetadata.preview)
-        const fullStorePromise = this.SB.storage.storeObject(this.objectMetadata.full.paddedBuffer, 'f', roomId, this.objectMetadata.full)
-        resolve({
-          fullStorePromise: fullStorePromise,
-          previewStorePromise: previewStorePromise
-        });
-      })
-    })
-
-  }
-
   processThumbnail = () => {
     const t0 = new Date().getTime();
     return new Promise((resolve) => {
-      restrictPhoto(this, 64, 'thumbnail').then(async (photo) => {
+      // new channel server is more ornery about this. our thumbnail limit
+      // is potentially 64 KiB, but this needs to wait for jslib 1.4.0 which
+      // will redesign some key low level aspects of messages. currently we
+      // want some space, so let's say 62 KiB, but then that needs to 
+      // tolerate b64 encoding along the way, ergo 62 * 3 / 4 = 46.5
+      restrictPhoto(this, 46 /* 64 */, 'thumbnail').then(async (photo) => {
         const t1 = new Date().getTime();
         console.warn(`#### thumbnail processing total ${t1 - t0} milliseconds (blocking)`);
         this.thumbnail = await getFileData(photo, 'url');
-        this.thumbnailResolve();
-        resolve(this)
+        const fileReader = new FileReader();
+        fileReader.onloadend = (e)=>{
+          const name = `thumbnail_${this.SBFile.name}`
+          const file = new File([photo], name)
+          e.target.files = [file]
+          // eslint-disable-next-line no-undef
+          window.SBFileHelper.handleFileDrop(e, (r)=>{
+            for(let i in r){
+              if(r[i].name === name){
+                this.thumbnailDetails = {
+                  uniqueShardId: r[i].uniqueShardId,
+                  fullName: r[i].fullName,
+                }
+                window.SBFileHelper.ignoreProcessing.set(r[i].uniqueShardId, this.thumbnailDetails)
+              }
+            }
+          });
+          this.thumbnailResolve();
+          resolve(this)
+        };
+        fileReader.readAsText(photo);
+
       }).catch(console.error)
     })
   }
@@ -527,21 +443,40 @@ export class SBImage {
     const t0 = new Date().getTime();
     let promisesArray = [
       restrictPhoto(this, 4096, 'preview'), // Preview 4MB
-      restrictPhoto(this, 15360, 'full') // Full 15MB
+      // restrictPhoto(this, 15360, 'full') // Full 15MB
     ]
     return new Promise((resolve) => {
       Promise.all(promisesArray).then(async (results) => {
         console.log(results)
-        const p = await this.SB.storage.getObjectMetadata(await results[0].arrayBuffer(), 'p')
-        const f = await this.SB.storage.getObjectMetadata(await results[1].arrayBuffer(), 'f')
+        const fileReader = new FileReader();
+        fileReader.onloadend = (e)=>{
+          const name = `preview_${this.SBFile.name}`
+          const file = new File([results[0]], name)
+          e.target.files = [file]
+          // eslint-disable-next-line no-undef
+          window.SBFileHelper.handleFileDrop(e, (r)=>{
+            for(let i in r){
+              if(r[i].name === name){
+                this.previewDetails = {
+                  uniqueShardId: r[i].uniqueShardId,
+                  fullName: r[i].fullName,
+                }
+                window.SBFileHelper.ignoreProcessing.set(r[i].uniqueShardId, this.previewDetails)
+              }
+            }
+          });
+          this.processingResolve();
+          resolve(this)
+        };
+        fileReader.readAsText(results[0]);
+        // const p = await this.SB.storage.getObjectMetadata(await results[0].arrayBuffer(), 'p')
+        // const f = await this.SB.storage.getObjectMetadata(await results[1].arrayBuffer(), 'f')
         const t1 = new Date().getTime();
         console.warn(`#### image processing total ${t1 - t0} milliseconds (blocking)`);
-        this.objectMetadata = {
-          preview: p,
-          full: f
-        }
-        this.processingResolve();
-        resolve(this)
+        // this.objectMetadata = {
+        //   preview: p,
+        //   full: f
+        // }
       }).catch(console.error)
     })
   }
@@ -554,12 +489,12 @@ export class SBImage {
     return new Promise((resolve) => {
       Promise.all(promisesArray).then(async (results) => {
         console.log(results)
-        const f = await this.SB.storage.getObjectMetadata(await results[1].arrayBuffer(), 'f')
+        // const f = await this.SB.storage.getObjectMetadata(await results[1].arrayBuffer(), 'f')
         const t1 = new Date().getTime();
         console.warn(`#### image processing total ${t1 - t0} milliseconds (blocking)`);
-        this.objectMetadata = {
-          full: f
-        }
+        // this.objectMetadata = {
+        //   full: f
+        // }
         this.processingResolve();
         resolve(this)
       }).catch(console.error)

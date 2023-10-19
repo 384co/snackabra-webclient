@@ -1,4 +1,4 @@
-import { amber, blue, blueGrey, brown, common, cyan, deepOrange, deepPurple, green, grey, indigo, lightBlue, lightGreen, lime, orange, pink, purple, red, teal, yellow } from '@mui/material/colors';
+import { amber, blue, blueGrey, brown, common, cyan, deepOrange, deepPurple, green, grey, indigo, lightBlue, lightGreen, lime, orange, pink, purple, red, teal, yellow } from '@mui/material/colors/index.js';
 
 export const getColorFromId = (id) => {
   let sumChars = 0;
@@ -33,6 +33,8 @@ export const getColorFromId = (id) => {
   return colors[sumChars % colors.length][keys[sumChars % keys.length]];
 }
 
+// ChatGPT function for mobile compatibility when downloading files
+// Expects fileData to be btoa encoded
 export const downloadFile = (fileData, fileName, fileType) => {
   if (fileData) {
     var iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -88,6 +90,15 @@ export const downloadFile = (fileData, fileName, fileType) => {
     } catch (ex) { }
   }
 };
+
+export function cloneMap(map) {
+  const clonedMap = new Map();
+  map.forEach((value, key) => {
+    clonedMap.set(key, value);
+  });
+
+  return clonedMap;
+}
 
 export function isDataURL(s) {
   return !!s.match(isDataURL.regex);

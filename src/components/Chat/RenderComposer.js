@@ -1,23 +1,20 @@
 import * as React from 'react';
-import TextField from '@mui/material/TextField';
-import { SBImage } from "../../utils/ImageProcessor";
-import { SnackabraContext } from "mobx-snackabra-store";
 import { observer } from "mobx-react"
-import { isDataURL } from '../../utils/misc';
-import { base64ToArrayBuffer } from "snackabra"
+import { TextField } from '@mui/material';
+import { SBImage } from "../../utils/ImageProcessorSBFileHelper.js";
+
+
 
 const RenderComposer = observer((props) => {
+  // eslint-disable-next-line no-undef
+  const FileHelper = window.SBFileHelper;
+  const sendElementId = `send-button-${props.roomId}`
+  const elementId = `composer-${props.roomId}`
   const { filesAttached, onTextChanged, inputErrored } = props
-  const sbContext = React.useContext(SnackabraContext);
   const [text, setText] = React.useState('')
   const [error, setError] = React.useState(false)
   const [attachedFiles, setFilesAttached] = React.useState(filesAttached)
 
-
-  React.useEffect(() => {
-    const sendButton = document.getElementById('send-button');
-    sendButton.addEventListener('click', handleSend)
-  }, [])
 
   const validateText = React.useCallback(async (text) => {
     const enc = new TextEncoder()
@@ -35,49 +32,34 @@ const RenderComposer = observer((props) => {
       setError(true)
       inputErrored(true)
     }
-  }, []);
+  }, [inputErrored]);
 
   React.useEffect(() => {
     validateText(text)
   }, [text, validateText])
 
-  const handleSend = () => {
-    setTimeout(() => {
-      setText('')
-      props.onTextChanged('')
-    }, 100)
+  const handleSend = React.useCallback(() => {
+    setText('')
+  }, [])
 
-  }
+  React.useEffect(() => {
+    const sendButton = document.getElementById(sendElementId);
+    sendButton.addEventListener('click', handleSend)
+  }, [handleSend, sendElementId])
 
   React.useEffect(() => {
     setFilesAttached(filesAttached)
-    if (filesAttached) {
+    if (filesAttached !== attachedFiles) {
       setText('')
       onTextChanged('')
+      onTextChanged('')
     }
-  }, [filesAttached, onTextChanged, setText])
-
-  const getSbImage = (file, props, sbContext) => {
-    return new Promise((resolve) => {
-      const sbImage = new SBImage(file, sbContext.SB);
-      sbImage.img.then((i) => {
-        sbImage.url = i.src
-        props.showLoading(false)
-        resolve(sbImage)
-        queueMicrotask(() => {
-          const SBImageCanvas = document.createElement('canvas');
-          sbImage.loadToCanvas(SBImageCanvas).then((c) => {
-            // SBImageCanvas.remove()
-          });
-        });
-      })
-    })
-  }
+  }, [attachedFiles, filesAttached, onTextChanged, setText])
 
   const checkForSend = (e) => {
     if (e.keyCode === 13 && !e.ctrlKey && !e.shiftKey && !error) {
-      document.getElementById('send-button').click()
-      const input = document.getElementById('sb_render_composer_textarea');
+      document.getElementById(sendElementId).click()
+      const input = document.getElementById(elementId);
       input.value = ""
       handleSend();
     }
@@ -88,50 +70,79 @@ const RenderComposer = observer((props) => {
     props.onTextChanged(e.target.value)
   }
 
+
+  const selectFiles = () => {
+    // props.showLoading(true)
+    try {
+      console.log('SBFileHelper.finalFileList')
+
+      const FileMap = new Map(FileHelper.finalFileList)
+      console.log('FileMap', FileMap)
+      for (const [key, value] of FileMap.entries()) {
+        console.log('asdfadsfjkbasdkjfaskjfb', key, value);
+        console.log(FileHelper.knownShards.get(value.uniqueShardId))
+
+        const original = FileHelper.finalFileList.get(key)
+        if (!FileHelper.knownShards.has(value.uniqueShardId)) {
+          original.knownShard = value.uniqueShardId
+        }
+        const buffer = FileHelper.globalBufferMap.get(value.uniqueShardId)
+        // const preview = window.SBFileHelper.finalFileList.get(value.uniqueShardId)
+        console.log('buffer', buffer
+          , 'original.sbImage', original)
+        if (buffer && !original.sbImage && !FileHelper.ignoreProcessing.has(value.uniqueShardId)) {
+          props.incrementFiles()
+          console.log('buffer found', buffer)
+          const sbImage = new SBImage(buffer, value);
+          sbImage.processThumbnail()
+          sbImage.processImage()
+          original.sbImage = sbImage
+        } else {
+          console.error('Buffer not found')
+          // throw new Error('Buffer not found')
+        }
+
+      };
+      // props.showFiles()
+
+    } catch (e) {
+      console.log(e)
+    }
+  }
+
   const pasteEvent = async (e) => {
-    // console.log(e.nativeEvent.clipboardData.getData('text/plain'))
+    console.log(e)
+
+    let mockEvent = {
+      preventDefault: () => { console.log('preventDefault') },
+      target: {
+        files: []
+      }
+    }
     setError(true)
-    let _files = []
+    e.nativeEvent.dataTransfer = e.nativeEvent.clipboardData
     const files = Object.assign(e.nativeEvent.clipboardData.files)
-    console.log(files)
     if (files.length > 0) {
       setText('')
     }
-    const text = e.nativeEvent.clipboardData.getData('text/plain');
-    if (isDataURL(text) && text.match(/data:image/)) {
-      setText('')
-      const base64 = e.nativeEvent.clipboardData.getData('text/plain').split(/data:image\/[a-zA-Z]{3,4};base64,/)[1]
-      const ab = base64ToArrayBuffer(base64)
-      _files.push(await getSbImage(new Blob([ab]), props, sbContext))
-    }
-
-
     for (let x in files) {
       if (files[x] instanceof File) {
         if (files[x].type.match(/^image/)) {
-          _files.push(await getSbImage(files[x], props, sbContext))
+          mockEvent.target.files.push(new File([files[x]], files[x].name, { type: files[x].type }))
         }
       }
     }
-    if (_files.length > 0) {
-      props.setFiles(_files)
-      setText('')
-      // props.onSend({ text: '' }, true)
-      setTimeout(()=>{
-        props.onTextChanged('')
-        setError(false)
-      }, 100)
-      
-    }
+    FileHelper.handleFileDrop(mockEvent, selectFiles);
+
   }
 
   return (
     <TextField
-      id="sb_render_composer_textarea"
+      id={elementId}
       label=""
       value={text}
       error={error}
-      onFocus={props.onFocus}
+      // onFocus={props.onFocus}
       onBlur={props.onBlur}
       placeholder="Type a message..."
       className="textinput-composer"
@@ -141,6 +152,7 @@ const RenderComposer = observer((props) => {
       onChange={handlChange}
       readOnly={attachedFiles}
       variant={'standard'}
+      disabled={!props.connected}
       InputProps={{
         disableUnderline: true
       }}
