@@ -1,8 +1,8 @@
 import React from 'react';
 import { CircularProgress, Grid, IconButton } from "@mui/material";
-import {Download as InputIcon, Check as CheckIcon} from '@mui/icons-material';
-import { isSameUser } from "react-native-gifted-chat";
-import { downloadFile } from '../../utils/misc.js'
+import InputIcon from '@mui/icons-material/Download';
+import CheckIcon from '@mui/icons-material/Check';
+import { downloadFile } from '../../utils/misc'
 
 const styles = {
   left: {
@@ -13,51 +13,43 @@ const styles = {
   }
 }
 
-const imageStyleSameUser = {
-  left: {
-    borderRadius: '0px 11px 0px 0px'
-  },
-  right: {
-    borderRadius: '11px 0px 0px 0px'
-  }
-}
-
 const RenderImage = (props) => {
-  const SB = window.SB;
   const [isDling, setIsDownloading] = React.useState(false)
   const [downloaded, setDownloaded] = React.useState(false)
   const downloadImage = (message) => {
     setIsDownloading(true)
     //  mtg: In scenarios where the preview and full size image are the same file because the full image is below 4MB
     const type = message.imageMetaData.imageId === message.imageMetaData.previewId ? 'p' : 'f'
-    props.sbContext.SB.storage.fetchData(props.controlMessages[message.fileMetadata.fullImageHash]).then((data) => {
-      if (data.hasOwnProperty('error')) {
-        setTimeout(() => {
-          setIsDownloading(false)
-          setDownloaded(false)
-        }, 2000)
-        throw new Error(`Could not open image (${data.error})`)
-
-      } else {
-        try {
-          downloadFile( SB.arrayBufferToBase64(data, 'b64'), 'image.jpeg', type)
-          setDownloaded(true)
+    props.sbContext.SB.storage.retrieveImage(
+      message.imageMetaData,
+      props.controlMessages,
+      message.imageMetaData.imageId,
+      message.imageMetaData.imageKey,
+      type).then((data) => {
+        if (data.hasOwnProperty('error')) {
           setTimeout(() => {
             setIsDownloading(false)
             setDownloaded(false)
-          }, 10000)
-        } catch {
-          throw new Error("Error processing file download")
+          }, 2000)
+          throw new Error(`Could not open image (${data.error})`)
+          // props.notify('Could not open image (' + data.error + ')', 'error');
+        } else {
+          try {
+            var regex = new RegExp(/data:([\w/\-\.]+);(\w+),(.*)/, '');
+            var match = data['url'].match(regex);
+            const type = match[1]
+            const fileData = match[3]
+            downloadFile(fileData, 'image.jpeg', type)
+            setDownloaded(true)
+            setTimeout(() => {
+              setIsDownloading(false)
+              setDownloaded(false)
+            }, 10000)
+          } catch {
+            throw new Error("Error processing file download")
+          }
         }
-      }
-    })
-  }
-
-  const getStyle = () => {
-    if (isSameUser(props.currentMessage, props.previousMessage)) {
-      return imageStyleSameUser[props.position]
-    }
-    return {}
+      })
   }
 
   if (typeof props.currentMessage.image === 'string') {
@@ -78,7 +70,7 @@ const RenderImage = (props) => {
 
       }
 
-      <img className='msgImg' style={getStyle()} onClick={() => props.openImageOverlay(props.currentMessage)}
+      <img className='msgImg' onClick={() => props.openImageOverlay(props.currentMessage)}
         src={props.currentMessage.image} alt='Previewed'></img>
     </Grid>)
   }

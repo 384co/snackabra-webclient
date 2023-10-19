@@ -1,6 +1,6 @@
-import React from "react";
-import ResponsiveDialog from "../ResponsiveDialog.js";
-import ImportRoomKeys from "../Rooms/ImportRoomKeys.js";
+import * as React from "react";
+import ResponsiveDialog from "../ResponsiveDialog";
+import ImportRoomKeys from "../Rooms/ImportRoomKeys";
 
 export default function ImportDialog(props){
   const [open, setOpen] = React.useState(props.open);

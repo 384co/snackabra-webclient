@@ -1,22 +1,19 @@
 /* Copyright (c) 2021 Magnusson Institute, All Rights Reserved */
 
 import React from 'react'
-import { ThemeProvider } from "@mui/material";
 import { SafeAreaProvider } from "react-native-safe-area-context"
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
-import { messages } from './locales/en/messages.js'
+import { messages } from './locales/en/messages'
 import { en } from 'make-plural/plurals'
-import AppRoutes from "./Routes.js";
-import theme from "./theme.js";
-import { NotificationProvider } from "./contexts/NotificationContext.js";
-import { NavBarActionProvider } from "./contexts/NavBarActionContext.js";
-import { SharedRoomStateProvider } from "./contexts/SharedRoomState.js";
-import { SnackabraProvider } from "./contexts/SnackabraContext.js";
-import NotificationBar from "./components/NotificationBar.js";
-import { VoipProvider } from './contexts/Voip/VoipContext.js'
-// import { LogProvider } from "./contexts/LogContext";
-
+import AppRoutes from "./Routes";
+import theme from "./theme";
+import { ThemeProvider } from "@mui/material";
+import { NotificationProvider } from "./contexts/NotificationContext";
+import { NavBarActionProvider } from "./contexts/NavBarActionContext";
+import { LogProvider } from "./contexts/LogContext";
+import { SnackabraProvider } from "mobx-snackabra-store";
+import NotificationBar from "./components/NotificationBar";
 
 
 i18n.loadLocaleData({
@@ -26,13 +23,11 @@ i18n.load('en', messages)
 i18n.activate('en')
 
 const sbConfig = {
-  channel_server: process.env.REACT_APP_CHANNEL_SERVER,
-  channel_ws: process.env.REACT_APP_CHANNEL_SERVER_WS,
-  storage_server: process.env.REACT_APP_STORAGE_SERVER,
-  shard_server: process.env.REACT_APP_SHARD_SERVER
+  channel_server: process.env.REACT_APP_ROOM_SERVER,
+  channel_ws: process.env.REACT_APP_ROOM_SERVER_WS,
+  storage_server: process.env.REACT_APP_STORAGE_SERVER
 }
 
-// provider hierarchy
 const App = () => {
   return (
     <SafeAreaProvider>
@@ -40,16 +35,12 @@ const App = () => {
         <ThemeProvider theme={theme}>
           <SnackabraProvider config={sbConfig}>
             <NotificationProvider>
-              <SharedRoomStateProvider>
-                <NavBarActionProvider>
-                  <VoipProvider config={sbConfig}>
-                    {/* <LogProvider> */}
-                    <AppRoutes />
-                    {/* </LogProvider> */}
-                  </VoipProvider>
-                  <NotificationBar />
-                </NavBarActionProvider>
-              </SharedRoomStateProvider>
+              <NavBarActionProvider>
+                <LogProvider>
+                  <AppRoutes />
+                </LogProvider>
+                <NotificationBar />
+              </NavBarActionProvider>
             </NotificationProvider>
           </SnackabraProvider>
         </ThemeProvider>

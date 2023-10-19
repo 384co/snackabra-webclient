@@ -1,12 +1,13 @@
 /* Copyright (c) 2021 Magnusson Institute, All Rights Reserved */
 
 import React, { useState } from 'react';
+import ResponsiveDialog from "../ResponsiveDialog";
+import { Grid, TextField, Typography } from "@mui/material";
+import { StyledButton } from "../../styles/Buttons";
+import ConfirmLockDialog from "./ConfirmLockDialog";
+import NotificationContext from "../../contexts/NotificationContext";
 import { observer } from "mobx-react"
-import { Grid, TextField, Typography, Button } from "@mui/material";
-import ConfirmLockDialog from "./ConfirmLockDialog.js";
-import NotificationContext from "../../contexts/NotificationContext.js";
-import ResponsiveDialog from "../ResponsiveDialog.js";
-import SnackabraContext from "../../contexts/SnackabraContext.js";
+import { SnackabraContext } from "mobx-snackabra-store";
 
 function isNumeric(v) {
   return !isNaN(v) &&
@@ -16,28 +17,22 @@ function isNumeric(v) {
 const AdminDialog = observer((props) => {
   const sbContext = React.useContext(SnackabraContext);
   const notify = React.useContext(NotificationContext);
-  const channel = sbContext.channels[props.roomId];
-  const [roomCapacity, setRoomCapacity] = useState(channel.capacity);
-  const [motd, setMOTD] = useState(channel.motd);
+  const [roomCapacity, setRoomCapacity] = useState(sbContext.capacity);
+  const [motd, setMOTD] = useState(sbContext.motd);
   const [open, setOpen] = useState(props.open);
   const [openLockDialog, setOpenLockDialog] = useState(false);
-
-  React.useEffect(() => {
-    if (motd === null && props.motd) {
-      setMOTD(props.motd)
-    }
-    if (roomCapacity === null && props.capacity) {
-      setRoomCapacity(props.capacity)
-    }
-  }, [motd, roomCapacity, props])
 
   React.useEffect(() => {
     setOpen(props.open)
   }, [props.open])
 
   const lockRoom = () => {
-    channel.lockRoom();
+    sbContext.lockRoom();
     props.onClose();
+  }
+
+  const openConfirm = () => {
+    setOpenLockDialog(true)
   }
 
   const cancelLock = () => {
@@ -46,8 +41,9 @@ const AdminDialog = observer((props) => {
 
   const setCapacity = () => {
     if (isNumeric(roomCapacity)) {
-      channel.capacity = Number(roomCapacity)
-      props.onClose();
+      sbContext.setRoomCapacity(Number(roomCapacity)).then(() => {
+        props.onClose();
+      })
     } else {
       notify.setMessage('Invalid room capacity');
       notify.setSeverity('error');
@@ -63,8 +59,7 @@ const AdminDialog = observer((props) => {
   return (<ResponsiveDialog
     title={'Admin Controls'}
     onClose={props.onClose}
-    open={open}
-    showActions>
+    open={open}>
     <ConfirmLockDialog
       onClose={() => {
         setOpenLockDialog(false)
@@ -78,7 +73,7 @@ const AdminDialog = observer((props) => {
       alignItems="flex-start">
       <Grid item xs={12}>
         <TextField
-          id="sb-motd"
+        id="sb-motd"
           multiline
           placeholder={'MOTD'}
           rows={4}
@@ -89,19 +84,19 @@ const AdminDialog = observer((props) => {
           fullWidth
           sx={{ pb: 1, pt: 1 }}
         />
-        <Button variant={"contained"} onClick={() => {
-          channel.motd = motd
-          if (motd !== '') {
+        <StyledButton variant={"contained"} onClick={() => {
+          sbContext.setMOTD(motd)
+          if(motd !== ''){
             sendMotdMessage()
           }
           props.onClose()
         }}>
           <Typography variant={"button"}>Save MOTD</Typography>
-        </Button>
+        </StyledButton>
       </Grid>
       <Grid item xs={12}>
         <TextField
-          id="sb-rrom-capacity"
+        id="sb-rrom-capacity"
           placeholder={'Room Capacity'}
           inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
           value={roomCapacity}
@@ -113,9 +108,19 @@ const AdminDialog = observer((props) => {
         />
       </Grid>
 
-      <Button variant={"contained"} sx={{ pb: 1, pt: 1 }} onClick={setCapacity}>
+      <StyledButton variant={"contained"} sx={{ pb: 1, pt: 1 }} onClick={setCapacity}>
         <Typography variant={"button"}>Save Capacity</Typography>
-      </Button>
+      </StyledButton>
+
+{/* 
+      <StyledButton variant={"contained"} onClick={openConfirm} sx={{ pb: 1, pt: 1 }}>
+        <Typography variant={"button"}>Restrict Room</Typography>
+      </StyledButton> */}
+      <Grid item xs={12} sx={{ pb: 1, pt: 1 }}>
+        <StyledButton variant={"contained"} onClick={props.onClose} sx={{ pb: 1, pt: 1 }}>
+          <Typography variant={"button"}>Cancel</Typography>
+        </StyledButton>
+      </Grid>
     </Grid>
   </ResponsiveDialog>
   );
