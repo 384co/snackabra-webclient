@@ -246,6 +246,9 @@ self.addEventListener('fetch', function (event) {
           .then(([response, cache]) => response.ok && cache.put(event.request, response))
           .catch(_ => { /* eat any errors */ })
       )
+    } else {
+      // psm384
+      console.warn('Ignoring fetch event (not on whitelist) for', event.request.url)
     }
   } else {
     // Handle other types of requests (e.g., PUT, POST) without caching
